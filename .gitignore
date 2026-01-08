@@ -1,0 +1,24 @@
+# Source video files (only keep converted .mp4)
+*.mov
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (if you add any)
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Backup files
+*.backup
+*~
+

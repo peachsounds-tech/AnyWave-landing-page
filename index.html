@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynamicMusicVST – Fit Any Music to Your Edit</title>
+    <meta name="description" content="Remap any moment in your audio to sync perfectly with your video. Stretch, compress, or realign music to hit your cues without losing the groove.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <!-- EmailJS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    
+    <style>
+        :root {
+            /* Brand colors from logo */
+            --peach-orange: #FF6B35;
+            --peach-orange-light: #FF8B5E;
+            --peach-orange-dark: #E55A28;
+            --wave-blue: #4A90D9;
+            --wave-blue-light: #6BA5E5;
+            --wave-blue-dark: #3A7BC4;
+            
+            /* Dark theme */
+            --bg-primary: #0A0A0F;
+            --bg-secondary: #12121A;
+            --bg-tertiary: #1A1A25;
+            --bg-card: #15151F;
+            
+            /* Text */
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0B0;
+            --text-muted: #606070;
+            
+            /* Gradients */
+            --gradient-hero: linear-gradient(135deg, var(--peach-orange) 0%, var(--wave-blue) 100%);
+            --gradient-card: linear-gradient(145deg, rgba(255, 107, 53, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%);
+            --gradient-glow: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* ============================================
+           NAVIGATION
+        ============================================ */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        nav.scrolled {
+            padding: 0.75rem 2rem;
+            background: rgba(10, 10, 15, 0.95);
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+        
+        .logo img {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .logo-text {
+            font-weight: 600;
+            font-size: 1.25rem;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .nav-cta {
+            background: var(--gradient-hero);
+            color: white !important;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+        }
+        
+        /* ============================================
+           HERO SECTION
+        ============================================ */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 8rem 2rem 4rem;
+            overflow: hidden;
+        }
+        
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+        
+        .hero-glow {
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150%;
+            height: 80%;
+            background: var(--gradient-glow);
+            filter: blur(80px);
+            opacity: 0.6;
+        }
+        
+        .grid-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 107, 53, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 107, 53, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+        }
+        
+        .hero-content {
+            max-width: 900px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            color: var(--peach-orange-light);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        .badge::before {
+            content: '✨';
+        }
+        
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.1s both;
+        }
+        
+        h1 .gradient {
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+        
+        .hero-ctas {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.3s both;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-hero);
+            color: white;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 35px rgba(255, 107, 53, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .hero-visual {
+            margin-top: 4rem;
+            position: relative;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+        
+        .app-screenshot {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 107, 53, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .app-screenshot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-card);
+            opacity: 0.5;
+        }
+        
+        .waveform-demo {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        
+        .demo-video {
+            width: 100%;
+            border-radius: 12px;
+            display: block;
+            cursor: pointer;
+        }
+        
+        .video-sound-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            font-family: inherit;
+        }
+        
+        .video-sound-toggle:hover {
+            background: rgba(255, 107, 53, 0.8);
+            transform: scale(1.05);
+        }
+        
+        .video-sound-toggle.unmuted {
+            background: rgba(255, 107, 53, 0.9);
+        }
+        
+        .waveform-bars {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 100%;
+        }
+        
+        .waveform-bar {
+            width: 4px;
+            background: var(--gradient-hero);
+            border-radius: 2px;
+            animation: waveform 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes waveform {
+            0%, 100% { transform: scaleY(0.3); }
+            50% { transform: scaleY(1); }
+        }
+        
+        /* ============================================
+           SOCIAL PROOF
+        ============================================ */
+        .social-proof {
+            padding: 4rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--bg-secondary);
+        }
+        
+        .social-proof-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .daw-logos {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            opacity: 0.6;
+        }
+        
+        .daw-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+        }
+        
+        /* ============================================
+           HOW IT WORKS
+        ============================================ */
+        .how-it-works {
+            padding: 8rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+        
+        .section-label {
+            color: var(--peach-orange);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+        }
+        
+        h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+        
+        .step {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .step:hover {
+            border-color: rgba(255, 107, 53, 0.3);
+            transform: translateY(-5px);
+        }
+        
+        .step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-hero);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .step:hover::before {
+            opacity: 1;
+        }
+        
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-hero);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .step h3 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .step p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        /* ============================================
+           FEATURES
+        ============================================ */
+        .features {
+            padding: 8rem 2rem;
+            background: var(--bg-secondary);
+        }
+        
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 2.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            border-color: rgba(74, 144, 217, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15) 0%, rgba(74, 144, 217, 0.15) 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+        
+        /* ============================================
+           DEMO VISUALIZATION
+        ============================================ */
+        .demo-section {
+            padding: 8rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .demo-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .demo-visual {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 3rem;
+            position: relative;
+            margin-top: 3rem;
+        }
+        
+        .timeline-demo {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .timeline-track {
+            position: relative;
+        }
+        
+        .track-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .track-waveform {
+            height: 60px;
+            background: rgba(255, 107, 53, 0.1);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .track-waveform.source {
+            background: rgba(74, 144, 217, 0.1);
+        }
+        
+        .track-waveform svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .connection-lines {
+            position: relative;
+            height: 40px;
+        }
+        
+        .connection-line {
+            position: absolute;
+            width: 2px;
+            background: var(--gradient-hero);
+            opacity: 0.5;
+        }
+        
+        .handle-point {
+            width: 12px;
+            height: 12px;
+            background: var(--peach-orange);
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 107, 53, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(255, 107, 53, 0.8); }
+        }
+        
+        /* ============================================
+           PRICING
+        ============================================ */
+        .pricing {
+            padding: 8rem 2rem;
+            background: var(--bg-secondary);
+        }
+        
+        .pricing-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .pricing-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(255, 107, 53, 0.3);
+            border-radius: 24px;
+            padding: 3rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pricing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-hero);
+        }
+        
+        .pricing-popular {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: var(--gradient-hero);
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .pricing-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pricing-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+        
+        .pricing-amount {
+            margin-bottom: 2rem;
+        }
+        
+        .price {
+            font-size: 4rem;
+            font-weight: 700;
+        }
+        
+        .price-currency {
+            font-size: 1.5rem;
+            vertical-align: top;
+            color: var(--text-secondary);
+        }
+        
+        .price-period {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 2.5rem;
+        }
+        
+        .pricing-features li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+        
+        .pricing-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--peach-orange);
+            font-weight: 700;
+        }
+        
+        .pricing-cta {
+            width: 100%;
+            font-size: 1.1rem;
+            padding: 1.25rem 2rem;
+        }
+        
+        /* ============================================
+           FAQ
+        ============================================ */
+        .faq {
+            padding: 8rem 2rem;
+        }
+        
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .faq-question {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 0;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            transition: color 0.2s ease;
+        }
+        
+        .faq-question:hover {
+            color: var(--peach-orange);
+        }
+        
+        .faq-icon {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+        
+        .faq-item.active .faq-icon {
+            transform: rotate(45deg);
+        }
+        
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        
+        .faq-item.active .faq-answer {
+            max-height: 300px;
+            padding-bottom: 1.5rem;
+        }
+        
+        .faq-answer p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        
+        /* ============================================
+           CTA SECTION
+        ============================================ */
+        .cta-section {
+            padding: 8rem 2rem;
+            background: var(--bg-secondary);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cta-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.1) 0%, transparent 60%);
+        }
+        
+        
+        .cta-content {
+            position: relative;
+            z-index: 1;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .cta-section h2 {
+            margin-bottom: 1.5rem;
+        }
+        
+        .cta-section .section-subtitle {
+            margin-bottom: 2.5rem;
+        }
+        
+        /* ============================================
+           EMAIL COLLECTION
+        ============================================ */
+        .email-collection {
+            padding: 6rem 2rem;
+            background: var(--bg-secondary);
+            text-align: center;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .countdown-badge {
+            display: inline-block;
+            background: rgba(255, 107, 53, 0.15);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            color: var(--peach-orange);
+            padding: 0.5rem 1.25rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+        }
+        
+        .email-form {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .email-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .email-input:focus {
+            outline: none;
+            border-color: var(--peach-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+        
+        .email-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .email-submit {
+            padding: 1rem 2.5rem;
+            background: var(--gradient-hero);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        
+        .email-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+        }
+        
+        .email-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .email-success {
+            background: rgba(74, 217, 130, 0.15);
+            border: 1px solid rgba(74, 217, 130, 0.3);
+            color: #4AD982;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .email-success.show {
+            display: block;
+        }
+        
+        .email-error {
+            background: rgba(255, 82, 82, 0.15);
+            border: 1px solid rgba(255, 82, 82, 0.3);
+            color: #FF5252;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .email-error.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .email-form {
+                flex-direction: column;
+            }
+            
+            .email-input {
+                min-width: 100%;
+            }
+            
+            .email-submit {
+                width: 100%;
+            }
+        }
+        
+        /* ============================================
+           FOOTER
+        ============================================ */
+        footer {
+            padding: 4rem 2rem 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .footer-brand img {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .footer-brand span {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .footer-copyright {
+            width: 100%;
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        
+        /* ============================================
+           ANIMATIONS
+        ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            opacity: 0;
+            animation: fadeInUp 0.8s ease forwards;
+        }
+        
+        /* ============================================
+           RESPONSIVE
+        ============================================ */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
+            .hero {
+                padding: 6rem 1.5rem 3rem;
+            }
+            
+            .hero-ctas {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+            
+            .waveform-demo {
+                height: 150px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-card {
+                padding: 2rem;
+            }
+            
+            .price {
+                font-size: 3rem;
+            }
+            
+            .footer-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+        
+        /* Mobile nav toggle */
+        .mobile-nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-nav-toggle {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <img src="icon.png" alt="DynamicMusicVST">
+                <span class="logo-text">DynamicMusicVST</span>
+            </a>
+            <div class="nav-links">
+                <a href="#how-it-works">How It Works</a>
+                <a href="#features">Features</a>
+                <a href="#early-access" class="nav-cta">Get Early Access</a>
+            </div>
+            <button class="mobile-nav-toggle" aria-label="Toggle navigation">☰</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="hero-glow"></div>
+            <div class="grid-pattern"></div>
+        </div>
+        <div class="hero-content">
+            <div class="badge">Beta • Early Access for Professional Video Editors</div>
+            <h1>
+                Fit Any Music to<br>
+                <span class="gradient">Your Edit</span>
+            </h1>
+            <p class="hero-subtitle">
+                Map audio moments to your video cues. Stretch, compress, or rearrange music to fit your edit — while keeping it sounding natural.
+            </p>
+            <div class="hero-ctas">
+                <a href="#early-access" class="btn btn-primary">
+                    <span>Get Early Access</span>
+                    <span>→</span>
+                </a>
+                <a href="#how-it-works" class="btn btn-secondary">
+                    <span>See How It Works</span>
+                </a>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="app-screenshot">
+                    <div class="waveform-demo">
+                        <video class="demo-video" id="heroVideo" loop muted playsinline>
+                            <source src="demo-video.mp4?v=5" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <button class="video-sound-toggle" id="soundToggle" data-video="heroVideo">🔇 Click for sound</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-visual" style="margin-top: 2rem;">
+                <div class="app-screenshot">
+                    <div class="waveform-demo">
+                        <video class="demo-video" id="heroVideo2" loop muted playsinline>
+                            <source src="demo-video2.mp4?v=1" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <button class="video-sound-toggle" id="soundToggle2" data-video="heroVideo2">🔇 Click for sound</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="social-proof">
+        <p class="social-proof-text">Perfect for any video editing workflow</p>
+        <div class="daw-logos">
+            <span class="daw-logo">Commercials</span>
+            <span class="daw-logo">Trailers</span>
+            <span class="daw-logo">Social Media</span>
+            <span class="daw-logo">YouTube</span>
+            <span class="daw-logo">Film & TV</span>
+            <span class="daw-logo">Podcasts</span>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="section-header">
+            <p class="section-label">How It Works</p>
+            <h2>Three Steps to Perfect Timing</h2>
+            <p class="section-subtitle">
+                From loading your audio to exporting the perfect cut — DynamicMusicVST handles the complexity for you.
+            </p>
+        </div>
+        
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Load Your Audio</h3>
+                <p>Import any music track. The app instantly analyzes the audio to understand its musical structure and find natural edit points.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Map Your Cues</h3>
+                <p>Drag handles to pin any moment in the music to any point on your timeline. The drop hits at 0:45? Make it land at 0:32 instead.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Export & Sync</h3>
+                <p>Export your remapped audio and drop it into your video project. Every cue lands exactly where you need it.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-header">
+                <p class="section-label">Features</p>
+                <h2>Sync Music to Your Edit</h2>
+                <p class="section-subtitle">
+                    Everything you need to make music fit your video perfectly.
+                </p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📍</div>
+                    <h3>Pin Any Moment</h3>
+                    <p>Map any point in the source audio to any point on your target timeline. Make the chorus hit exactly when your logo appears.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎵</div>
+                    <h3>Musically Intelligent</h3>
+                    <p>The app finds natural edit points that preserve the musical flow. No jarring cuts or awkward transitions.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⏱️</div>
+                    <h3>Any Duration</h3>
+                    <p>Need a 3-minute track to fit 47 seconds? Or stretch a 30-second loop to 2 minutes? No problem.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Multiple Sync Points</h3>
+                    <p>Add as many time-lock points as you need. The app intelligently remaps everything in between.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Instant Preview</h3>
+                    <p>Hear your changes in real-time as you drag handles. Fine-tune until every moment is perfect.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Export Ready</h3>
+                    <p>Export high-quality audio ready to drop into Premiere, Final Cut, DaVinci Resolve, or any video editor.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Email Collection -->
+    <section class="email-collection" id="early-access">
+        <div class="email-container">
+            <div class="countdown-badge" id="countdownBadge">
+                <span id="remainingSpots">200</span> beta tester spots remaining
+            </div>
+            <div class="section-header">
+                <h2>Get Early Access</h2>
+                <p class="section-subtitle">
+                    Join the beta and get free access. We'll send you the download link via email.
+                </p>
+            </div>
+            
+            <form class="email-form" id="emailForm">
+                <input 
+                    type="email" 
+                    class="email-input" 
+                    id="emailInput"
+                    placeholder="your.email@example.com" 
+                    required
+                >
+                <button type="submit" class="email-submit" id="emailSubmit">
+                    Get Access →
+                </button>
+            </form>
+            
+            <div class="email-success" id="emailSuccess">
+                ✓ Check your email! We've sent you the early access link.
+            </div>
+            
+            <div class="email-error" id="emailError">
+                Something went wrong. Please try again or contact support.
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="icon.png" alt="DynamicMusicVST">
+                <span>PeachSounds</span>
+            </div>
+            <div class="footer-links">
+                <a href="mailto:support@peachsounds.com">Support</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+            </div>
+            <div class="footer-copyright">
+                <p>© 2026 PeachSounds. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Video sound toggle with exclusive mode
+        const heroVideo = document.getElementById('heroVideo');
+        const heroVideo2 = document.getElementById('heroVideo2');
+        const soundToggle = document.getElementById('soundToggle');
+        const soundToggle2 = document.getElementById('soundToggle2');
+        
+        // Play videos when they come into view
+        const videoObserverOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.5 // Start playing when 50% of video is visible
+        };
+        
+        const videoObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.play().catch(e => {
+                        // Ignore autoplay errors
+                        console.log('Video play prevented:', e);
+                    });
+                } else {
+                    entry.target.pause();
+                }
+            });
+        }, videoObserverOptions);
+        
+        // Observe both videos
+        if (heroVideo) {
+            videoObserver.observe(heroVideo);
+        }
+        if (heroVideo2) {
+            videoObserver.observe(heroVideo2);
+        }
+        
+        function muteVideo(video, toggle) {
+            video.muted = true;
+            toggle.textContent = '🔇 Click for sound';
+            toggle.classList.remove('unmuted');
+        }
+        
+        function unmuteVideo(video, toggle) {
+            video.muted = false;
+            toggle.textContent = '🔊 Sound on';
+            toggle.classList.add('unmuted');
+        }
+        
+        soundToggle.addEventListener('click', () => {
+            if (heroVideo.muted) {
+                // Unmute this video, mute the other
+                unmuteVideo(heroVideo, soundToggle);
+                muteVideo(heroVideo2, soundToggle2);
+            } else {
+                muteVideo(heroVideo, soundToggle);
+            }
+        });
+        
+        soundToggle2.addEventListener('click', () => {
+            if (heroVideo2.muted) {
+                // Unmute this video, mute the other
+                unmuteVideo(heroVideo2, soundToggle2);
+                muteVideo(heroVideo, soundToggle);
+            } else {
+                muteVideo(heroVideo2, soundToggle2);
+            }
+        });
+        
+        // Navbar scroll effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in-up');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.step, .feature-card, .pricing-card').forEach(el => {
+            el.style.opacity = '0';
+            observer.observe(el);
+        });
+        
+        // Email collection and countdown
+        console.log('Email collection script starting...');
+        const emailForm = document.getElementById('emailForm');
+        const emailInput = document.getElementById('emailInput');
+        const emailSubmit = document.getElementById('emailSubmit');
+        const emailSuccess = document.getElementById('emailSuccess');
+        const emailError = document.getElementById('emailError');
+        const countdownBadge = document.getElementById('countdownBadge');
+        const remainingSpots = document.getElementById('remainingSpots');
+        
+        // Debug: Check if elements exist
+        console.log('Form elements check:', {
+            emailForm: !!emailForm,
+            emailInput: !!emailInput,
+            emailSubmit: !!emailSubmit,
+            emailSuccess: !!emailSuccess,
+            emailError: !!emailError
+        });
+        
+        if (!emailForm) {
+            console.error('emailForm not found!');
+        }
+        
+        // Initialize countdown from localStorage or default to 200
+        let currentCount = parseInt(localStorage.getItem('earlyAccessCount') || '200');
+        
+        function updateCountdown() {
+            if (currentCount > 0) {
+                remainingSpots.textContent = currentCount;
+            } else {
+                countdownBadge.textContent = 'Beta tester spots filled';
+                countdownBadge.style.opacity = '0.6';
+            }
+        }
+        
+        updateCountdown();
+        
+        // Initialize EmailJS
+        // TODO: Replace these with your EmailJS credentials from https://www.emailjs.com/
+        // 1. Sign up at emailjs.com
+        // 2. Create an email service (Gmail, SendGrid, etc.)
+        // 3. Create an email template with variables: {{email}}, {{download_link}}
+        // 4. Get your Service ID, Template ID, and Public Key
+        const EMAILJS_SERVICE_ID = 'service_lqsyf8k';
+        const EMAILJS_TEMPLATE_ID = 'template_hxm32ii';
+        const EMAILJS_PUBLIC_KEY = 'gK6rDTlAT4fHfS-I_';
+        
+        // Initialize EmailJS
+        function initEmailJS() {
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init(EMAILJS_PUBLIC_KEY);
+                console.log('EmailJS initialized successfully');
+                return true;
+            } else {
+                console.error('EmailJS library not loaded');
+                return false;
+            }
+        }
+        
+        // Wait for EmailJS to load
+        if (typeof emailjs !== 'undefined') {
+            initEmailJS();
+        } else {
+            // Retry after a short delay
+            setTimeout(() => {
+                if (typeof emailjs !== 'undefined') {
+                    initEmailJS();
+                } else {
+                    console.error('EmailJS failed to load. Check the script tag.');
+                }
+            }, 1000);
+        }
+        
+        // Your download link (replace with actual DMG download URL)
+        const DOWNLOAD_LINK = 'https://your-domain.com/downloads/DynamicMusicVST.dmg';
+        
+        async function handleFormSubmit(e) {
+            if (e) {
+                e.preventDefault();
+            }
+            console.log('=== FORM SUBMISSION STARTED ===');
+            
+            const email = emailInput.value.trim();
+            console.log('Email value:', email);
+            if (!email) {
+                console.log('No email provided, returning');
+                return;
+            }
+            
+            // Hide previous messages
+            console.log('Hiding previous messages');
+            emailSuccess.classList.remove('show');
+            emailError.classList.remove('show');
+            
+            // Disable form
+            console.log('Disabling form');
+            emailSubmit.disabled = true;
+            emailSubmit.textContent = 'Sending...';
+            
+            try {
+                console.log('Entering try block');
+                // Check if email already submitted
+                const storedEmails = JSON.parse(localStorage.getItem('earlyAccessEmails') || '[]');
+                console.log('Stored emails:', storedEmails);
+                const isNewEmail = !storedEmails.includes(email);
+                
+                if (isNewEmail) {
+                    console.log('New email, will decrement count');
+                } else {
+                    console.log('Email already submitted, will resend but not decrement count');
+                }
+                
+                // Send email via EmailJS
+                if (typeof emailjs === 'undefined') {
+                    console.error('EmailJS is undefined!');
+                    throw new Error('EmailJS library not loaded. Check the script tag.');
+                }
+                
+                console.log('EmailJS is defined, checking credentials...');
+                console.log('Sending email to:', email);
+                console.log('Using service:', EMAILJS_SERVICE_ID);
+                console.log('Using template:', EMAILJS_TEMPLATE_ID);
+                console.log('Download link:', DOWNLOAD_LINK);
+                
+                console.log('About to call emailjs.send...');
+                const emailParams = {
+                    email: email,
+                    download_link: DOWNLOAD_LINK,
+                    to_email: email,
+                    from_name: 'DynamicMusicVST',
+                    from_email: 'beta@peachsounds.com', // Custom sender email
+                    reply_to: 'beta@peachsounds.com', // Reply-to address
+                    message: `Welcome to DynamicMusicVST Beta! Download link: ${DOWNLOAD_LINK}`
+                };
+                console.log('Email params:', emailParams);
+                
+                const emailResult = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, emailParams);
+                
+                console.log('EmailJS response received:', emailResult);
+                console.log('Response status:', emailResult.status);
+                console.log('Response text:', emailResult.text);
+                
+                if (emailResult.status !== 200) {
+                    throw new Error(`EmailJS returned status ${emailResult.status}`);
+                }
+                
+                console.log('Email sent successfully!');
+                
+                // Store email locally (only if new)
+                if (isNewEmail) {
+                    storedEmails.push(email);
+                    localStorage.setItem('earlyAccessEmails', JSON.stringify(storedEmails));
+                    
+                    // Decrement countdown (only for new emails)
+                    if (currentCount > 0) {
+                        currentCount--;
+                        localStorage.setItem('earlyAccessCount', currentCount.toString());
+                        updateCountdown();
+                    }
+                }
+                
+                // Show success
+                emailSuccess.classList.add('show');
+                emailInput.value = '';
+                
+            } catch (error) {
+                console.error('Error sending email:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    text: error.text,
+                    status: error.status
+                });
+                
+                // Show more detailed error message
+                const errorMessage = error.text || error.message || 'Failed to send email. Please check the console for details.';
+                emailError.textContent = `Error: ${errorMessage}`;
+                emailError.classList.add('show');
+            } finally {
+                emailSubmit.disabled = false;
+                emailSubmit.textContent = 'Get Access →';
+            }
+        }
+        
+        // Attach event listeners
+        if (!emailForm) {
+            console.error('Cannot attach submit handler - emailForm not found');
+        } else {
+            console.log('Form found, attaching submit handler');
+            emailForm.addEventListener('submit', handleFormSubmit);
+        }
+        
+        // Also attach to button click as fallback
+        if (emailSubmit) {
+            emailSubmit.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Button clicked, triggering form submit');
+                handleFormSubmit(e);
+            });
+        }
+    </script>
+</body>
+</html>
+
