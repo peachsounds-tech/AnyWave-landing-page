@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download AnyWave</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 3rem;
+            max-width: 500px;
+        }
+        
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            animation: bounce 1s ease infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #f8b500, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .download-status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-icon {
+            font-size: 1.2rem;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #f8b500;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .manual-download {
+            margin-top: 2rem;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+        
+        .manual-download a {
+            color: #f8b500;
+            text-decoration: none;
+        }
+        
+        .manual-download a:hover {
+            text-decoration: underline;
+        }
+        
+        .next-steps {
+            background: rgba(248, 181, 0, 0.1);
+            border: 1px solid rgba(248, 181, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: left;
+        }
+        
+        .next-steps h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #f8b500;
+        }
+        
+        .next-steps ol {
+            margin-left: 1.25rem;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+    </style>
+    
+    <!-- PostHog -->
+    <script>
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+        posthog.init('phc_dnl6DeJCzmkXoxbCBB76zohIRKJddLrBFIxsdMzbsyg', {
+            api_host: 'https://us.i.posthog.com',
+            persistence: 'localStorage',
+            autocapture: false,
+            capture_pageview: false
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🍑</div>
+        <h1>Thank You!</h1>
+        <p class="subtitle">Your download should start automatically.<br>Your license key is on its way to your email.</p>
+        
+        <div class="download-status">
+            <div class="status-item">
+                <span class="status-icon" id="download-icon">
+                    <div class="spinner"></div>
+                </span>
+                <span id="download-text">Starting download...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-icon">📧</span>
+                <span>License key sent to your email</span>
+            </div>
+        </div>
+        
+        <div class="next-steps">
+            <h3>Next Steps</h3>
+            <ol>
+                <li>Open the downloaded DMG file</li>
+                <li>Drag AnyWave to Applications</li>
+                <li>Check your email for the license key</li>
+                <li>Enter the key when prompted</li>
+            </ol>
+        </div>
+
+        <div class="next-steps" style="margin-top: 1rem; background: rgba(255, 100, 100, 0.1); border-color: rgba(255, 100, 100, 0.3);">
+            <h3 style="color: #ff6b6b;">⚠️ "App is damaged" error?</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">This is a macOS security feature for unsigned apps. Run this in Terminal:</p>
+            <code style="display: block; background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; word-break: break-all;">xattr -cr ~/Downloads/AnyWave-1.0.0.dmg</code>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Then open the DMG again.</p>
+        </div>
+        
+        <p class="manual-download">
+            Download not starting? <a href="#" id="manual-download-link">Click here to download manually</a>
+        </p>
+    </div>
+    
+    <script>
+        // Configuration - Public releases repo
+        const DOWNLOAD_URL = 'https://github.com/peachsounds/anywave-releases/releases/download/v1.0.0/AnyWave-1.0.0.dmg';
+        
+        // SHA-256 hash function
+        async function hashEmail(email) {
+            const normalized = email.toLowerCase().trim();
+            const encoder = new TextEncoder();
+            const data = encoder.encode(normalized);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Get email from URL params
+        function getEmailFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            // Lemon Squeezy passes email as checkout_email or email
+            return params.get('checkout_email') || params.get('email') || null;
+        }
+        
+        // Track download event
+        async function trackDownload(email) {
+            if (!email) {
+                console.log('No email found, tracking anonymously');
+                posthog.capture('download_started', {
+                    source: 'post_checkout'
+                });
+                return;
+            }
+            
+            const hashedEmail = await hashEmail(email);
+            
+            // Identify with hashed email (continues the funnel)
+            posthog.identify(hashedEmail);
+            
+            // Track download event
+            posthog.capture('download_started', {
+                hashed_email: hashedEmail,
+                source: 'post_checkout'
+            });
+            
+            console.log('Download tracked for:', hashedEmail);
+        }
+        
+        // Start download
+        function startDownload() {
+            const link = document.createElement('a');
+            link.href = DOWNLOAD_URL;
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Update UI
+            setTimeout(() => {
+                document.getElementById('download-icon').innerHTML = '✅';
+                document.getElementById('download-text').textContent = 'Download started!';
+            }, 1000);
+        }
+        
+        // Initialize
+        async function init() {
+            const email = getEmailFromURL();
+            
+            // Track the download
+            await trackDownload(email);
+            
+            // Start download after a short delay
+            setTimeout(startDownload, 500);
+            
+            // Set up manual download link
+            document.getElementById('manual-download-link').href = DOWNLOAD_URL;
+        }
+        
+        // Run on page load
+        init();
+    </script>
+</body>
+</html>
+

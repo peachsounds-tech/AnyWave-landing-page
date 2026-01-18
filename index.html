@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AnyWave VST – Fit Any Music to your Edit</title>
+    <title>AnyWave – Fit Any Music to your Edit</title>
     <meta name="description" content="Remap any moment in your audio to sync perfectly with your video. Stretch, compress, or realign music to hit your cues without losing the groove.">
     
     <!-- Fonts -->
@@ -1485,6 +1485,14 @@
             font-weight: 700;
         }
         
+        .benefit-item--disabled {
+            opacity: 0.6;
+        }
+        
+        .benefit-item--disabled .benefit-icon {
+            color: var(--text-muted);
+        }
+        
         .upgrade-note {
             font-size: 0.95rem;
             color: var(--text-secondary);
@@ -1677,6 +1685,78 @@
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             color: var(--text-muted);
             font-size: 0.85rem;
+        }
+        
+        /* ============================================
+           MEDIUM LAPTOPS (1400-1600px wide, <1000px tall)
+           For screens like 1470×956 where content needs to fit
+        ============================================ */
+        @media (min-width: 1400px) and (max-width: 1599px) and (max-height: 1000px) {
+            .pricing-section {
+                padding: 2.5rem 2rem;
+            }
+            
+            .pricing-section .section-header {
+                margin-bottom: 1.5rem;
+            }
+            
+            .pricing-section h2 {
+                font-size: 2.25rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .pricing-cards {
+                gap: 1.5rem;
+                margin: 1rem auto;
+            }
+            
+            .pricing-card {
+                padding: 1.25rem;
+            }
+            
+            .plan-badge {
+                font-size: 0.7rem;
+                padding: 0.3rem 0.9rem;
+                top: -10px;
+            }
+            
+            .plan-name {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .plan-price .price {
+                font-size: 2.25rem;
+            }
+            
+            .plan-price .period {
+                font-size: 0.85rem;
+            }
+            
+            .plan-description {
+                font-size: 0.85rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .plan-features {
+                gap: 0.25rem;
+                margin: 0.75rem 0;
+            }
+            
+            .plan-features li {
+                font-size: 0.85rem;
+                padding: 0.35rem 0;
+            }
+            
+            .pricing-card .btn {
+                height: 42px;
+                font-size: 0.85rem;
+            }
+            
+            .plan-disclaimer {
+                font-size: 0.75rem;
+                margin-top: 0.5rem;
+            }
         }
         
         /* ============================================
@@ -2819,7 +2899,7 @@
             <div class="nav-links">
                 <a href="#how-it-works">How It Works</a>
                 <a href="#pricing">Pricing</a>
-                <a href="#pricing" class="nav-cta">Get AnyWave VST</a>
+                <a href="#pricing" class="nav-cta">Get AnyWave</a>
             </div>
         </div>
     </nav>
@@ -2831,14 +2911,14 @@
             <div class="grid-pattern"></div>
         </div>
         <div class="hero-content">
-            <h1 style="position: relative;"><span class="gradient">AnyWave VST</span></h1>
+            <h1 style="position: relative;"><span class="gradient">AnyWave</span></h1>
             <p class="hero-tagline">Shift <span class="gradient">Time.</span> Shape <span class="gradient">Sound.</span></p>
             
             <div class="hero-visual">
                 <div class="app-screenshot">
                     <div class="waveform-demo">
                         <video class="demo-video" id="heroVideo" loop muted playsinline>
-                            <source src="demo-video.mov?v=12" type="video/mp4">
+                            <source src="demo-video.mp4" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                         <button class="video-sound-toggle" id="soundToggle" data-video="heroVideo" aria-label="Unmute demo video" aria-pressed="false">🔇 Unmute</button>
@@ -2850,7 +2930,7 @@
             </p>
             <div class="hero-ctas">
                 <a href="#pricing" class="btn btn-primary">
-                    <span>Get AnyWave VST</span>
+                    <span>Get AnyWave</span>
                     <span>→</span>
                 </a>
                 <a href="#how-it-works" class="btn btn-secondary">
@@ -2888,7 +2968,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">🎵</div>
                     <h3>Smart Analysis</h3>
-                    <p>Drop in any track. AnyWave VST instantly maps the musical structure and finds natural edit points—no manual beat-matching.</p>
+                    <p>Drop in any track. AnyWave instantly maps the musical structure and finds natural edit points—no manual beat-matching.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⏱️</div>
@@ -2923,7 +3003,7 @@
                 <!-- Pro Plan (Featured) -->
                 <div class="pricing-card featured">
                     <div class="plan-badge">⭐ RECOMMENDED</div>
-                    <h3 class="plan-name">AnyWave VST Pro</h3>
+                    <h3 class="plan-name">AnyWave Pro</h3>
                     <div class="plan-price">
                         <span class="price">$9.99</span>
                         <span class="period">/month</span>
@@ -2936,7 +3016,7 @@
                         <li>✓ Premium support</li>
                         <li>✓ Commercial license</li>
                     </ul>
-                    <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/5fb63394-5be2-4099-812e-c4eeabe902cc?embed=1" class="lemonsqueezy-button btn btn-primary btn-large">
+                    <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/63bb0aac-935d-4274-b374-0d2987314edc?embed=1" class="lemonsqueezy-button btn btn-primary btn-large">
                         Start Subscription
                     </a>
                     <p class="plan-note">Cancel anytime</p>
@@ -2972,7 +3052,7 @@
             <div class="section-header">
                 <h2>Download Free Trial</h2>
                 <p class="section-subtitle">
-                    Test drive all features. Upgrade anytime to unlock exports.
+                    Test drive all features. Upgrade when you love it.
                 </p>
             </div>
             
@@ -2996,11 +3076,11 @@
                     </div>
                     <div class="benefit-item">
                         <span class="benefit-icon">✓</span>
-                        <span>Unlimited projects</span>
-                    </div>
-                    <div class="benefit-item">
-                        <span class="benefit-icon">✓</span>
                         <span>No time limit</span>
+                    </div>
+                    <div class="benefit-item benefit-item--disabled">
+                        <span class="benefit-icon">✗</span>
+                        <span>Export disabled</span>
                     </div>
                 </div>
                 <p class="upgrade-note">
@@ -3014,7 +3094,7 @@
     <footer>
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="icon.png" alt="AnyWave VST">
+                <img src="icon.png" alt="AnyWave">
                 <span>PeachSounds</span>
             </div>
             <div class="footer-links">
@@ -3346,6 +3426,60 @@
                         });
                     }
                 }, 3000); // 3 seconds - reasonable time for download to start/complete for most connections
+            });
+        }
+        
+        // ============================================
+        // CHECKOUT TRACKING
+        // Pass PostHog distinct_id to Lemon Squeezy for user aliasing
+        // ============================================
+        
+        const checkoutBtn = document.querySelector('.lemonsqueezy-button');
+        
+        if (checkoutBtn) {
+            // Function to append PostHog ID to checkout URL
+            function updateCheckoutUrl() {
+                if (typeof posthog !== 'undefined' && posthog.get_distinct_id) {
+                    const distinctId = posthog.get_distinct_id();
+                    const baseHref = 'https://peachsounds.lemonsqueezy.com/checkout/buy/63bb0aac-935d-4274-b374-0d2987314edc?embed=1';
+                    const newHref = `${baseHref}&checkout[custom][posthog_id]=${encodeURIComponent(distinctId)}`;
+                    checkoutBtn.setAttribute('href', newHref);
+                    console.log('Checkout URL updated with PostHog ID:', distinctId);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Try to update URL immediately, or wait for PostHog to load
+            if (!updateCheckoutUrl()) {
+                // PostHog not ready, try again after a delay
+                const checkInterval = setInterval(() => {
+                    if (updateCheckoutUrl()) {
+                        clearInterval(checkInterval);
+                    }
+                }, 500);
+                
+                // Stop checking after 10 seconds
+                setTimeout(() => clearInterval(checkInterval), 10000);
+            }
+            
+            // Track checkout started on click
+            checkoutBtn.addEventListener('click', () => {
+                // Update URL one more time right before click (in case it wasn't updated)
+                updateCheckoutUrl();
+                
+                if (typeof posthog !== 'undefined') {
+                    const distinctId = posthog.get_distinct_id();
+                    posthog.capture('checkout_started', {
+                        plan: 'pro',
+                        price: 9.99,
+                        currency: 'USD',
+                        billing_period: 'monthly',
+                        source: 'landing_page',
+                        posthog_distinct_id: distinctId
+                    });
+                    console.log('PostHog: checkout_started tracked with distinct_id:', distinctId);
+                }
             });
         }
     </script>
