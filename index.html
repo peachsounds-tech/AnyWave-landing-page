@@ -23,6 +23,19 @@
     </script>
     
     <!-- ============================================
+         EARLY ACCESS REDIRECT
+         Toggle: Set to true to redirect to early access page
+         When ready for normal launch, set EARLY_ACCESS_MODE = false
+         ============================================ -->
+    <script>
+        const EARLY_ACCESS_MODE = true;  // <-- TOGGLE THIS: true = early access, false = normal
+        
+        if (EARLY_ACCESS_MODE && !window.location.pathname.includes('early.html')) {
+            window.location.replace('early.html');
+        }
+    </script>
+    
+    <!-- ============================================
          COOKIE CONSENT MODULE
          GDPR-compliant: Analytics only loads after explicit consent.
          Storage: localStorage (consent persists 180 days, dismiss = 7 days)
@@ -3487,7 +3500,11 @@
             console.log('Event properties to send:', eventProps);
             
             // Identify user with UUID and set UTMs as user properties (first-touch)
-            const personProps = {};
+            const personProps = {
+                first_seen_page: 'landing',
+                first_seen_url: window.location.href,
+                user_type: 'standard'  // Tag user as standard (won't overwrite 'early_access' due to $set_once)
+            };
             if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
             if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
             if (utms.utm_campaign) personProps.first_utm_campaign = utms.utm_campaign;
@@ -3503,9 +3520,10 @@
             });
             
             // Track page view event with current UTMs
-            posthog.capture('landing_page_viewed', eventProps);
+            eventProps.page = 'landing';
+            posthog.capture('page_viewed', eventProps);
             
-            console.log('PostHog: landing_page_viewed tracked!');
+            console.log('PostHog: page_viewed (landing) tracked!');
         }
         
         // Track application submission
@@ -3526,11 +3544,10 @@
                 return hashedEmail; // Still return hash for checkout flow
             }
             
-            // Link anonymous UUID to hashed email (for funnel continuity)
-            posthog.alias(hashedEmail, uuid);
-            
             // Update identity to hashed email with user properties
+            // The $anon_distinct_id property tells PostHog to merge the anonymous user's history
             posthog.identify(hashedEmail, {
+                $anon_distinct_id: uuid,  // This merges the anonymous user into the identified user
                 $set: {
                     work_type: workType,
                     anonymous_uuid: uuid
@@ -3639,11 +3656,26 @@
         const checkoutBtn = document.querySelector('.lemonsqueezy-button');
         
         if (checkoutBtn) {
+            // Determine if running locally or on production
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' || 
+                               window.location.hostname.includes('192.168.');
+            
+            // Test checkout for local, live checkout for production
+            const checkoutId = isLocalhost 
+                ? '63bb0aac-935d-4274-b374-0d2987314edc'  // Test checkout
+                : '5585ea8e-18e3-4608-ab13-fb9bac5f36c4'; // Live checkout
+            
+            console.log(`Using ${isLocalhost ? 'TEST' : 'LIVE'} checkout:`, checkoutId);
+            
+            // Set initial href immediately (without PostHog ID)
+            const baseHref = `https://peachsounds.lemonsqueezy.com/checkout/buy/${checkoutId}?embed=1`;
+            checkoutBtn.setAttribute('href', baseHref);
+            
             // Function to append PostHog ID to checkout URL
             function updateCheckoutUrl() {
                 if (typeof posthog !== 'undefined' && posthog.get_distinct_id) {
                     const distinctId = posthog.get_distinct_id();
-                    const baseHref = 'https://peachsounds.lemonsqueezy.com/checkout/buy/5585ea8e-18e3-4608-ab13-fb9bac5f36c4?embed=1';
                     const newHref = `${baseHref}&checkout[custom][posthog_id]=${encodeURIComponent(distinctId)}`;
                     checkoutBtn.setAttribute('href', newHref);
                     console.log('Checkout URL updated with PostHog ID:', distinctId);
@@ -3716,10 +3748,14 @@
             
             try {
                 const hashedEmail = await hashEmailLS(email);
+                const currentDistinctId = posthog.get_distinct_id();
                 console.log('Identifying user with hashed email:', hashedEmail);
+                console.log('Current distinct_id:', currentDistinctId);
                 
                 // Identify the user - this merges anonymous with identified
+                // Include $anon_distinct_id to ensure proper aliasing
                 posthog.identify(hashedEmail, {
+                    $anon_distinct_id: currentDistinctId,  // Merge anonymous user's history
                     email_hash: hashedEmail,
                     checkout_completed: true
                 });

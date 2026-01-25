@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AnyWave – Free Early Access</title>
+    <meta name="description" content="Get free early access to AnyWave. Remap any moment in your audio to sync perfectly with your video. Help us shape the future of music editing.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <!-- Disable browser scroll restoration -->
+    <script>
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+        window.scrollTo(0, 0);
+    </script>
+    
+    <!-- ============================================
+         EARLY ACCESS GATE
+         When early access ends, set EARLY_ACCESS_OPEN = false
+         This will redirect visitors to the main landing page
+         ============================================ -->
+    <script>
+        const EARLY_ACCESS_OPEN = true;  // <-- TOGGLE THIS: true = early access open, false = closed (redirects to main page)
+        
+        if (!EARLY_ACCESS_OPEN) {
+            window.location.replace('index.html');
+        }
+    </script>
+    
+    <!-- ============================================
+         COOKIE CONSENT MODULE
+         GDPR-compliant: Analytics only loads after explicit consent.
+         Storage: localStorage (consent persists 180 days, dismiss = 7 days)
+         ============================================ -->
+    <script>
+        /**
+         * CookieConsent Module
+         * - Manages user consent for analytics tracking
+         * - Complies with EU cookie law (no tracking before consent)
+         * - Stores preference in localStorage
+         */
+        const CookieConsent = (function() {
+            const STORAGE_KEY = 'anywave_analytics_consent';
+            const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
+            const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
+            
+            // Consent states
+            const CONSENT_ACCEPTED = 'accepted';
+            const CONSENT_REJECTED = 'rejected';
+            const CONSENT_DISMISSED = 'dismissed';  // "×" clicked - treat as soft reject
+            
+            /**
+             * Get stored consent data
+             * @returns {Object|null} { status: string, timestamp: number } or null
+             */
+            function getStoredConsent() {
+                try {
+                    const data = localStorage.getItem(STORAGE_KEY);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    console.warn('CookieConsent: Could not read localStorage', e);
+                    return null;
+                }
+            }
+            
+            /**
+             * Store consent decision
+             * @param {string} status - 'accepted', 'rejected', or 'dismissed'
+             */
+            function storeConsent(status) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        status: status,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('CookieConsent: Could not write to localStorage', e);
+                }
+            }
+            
+            /**
+             * Check if stored consent has expired
+             * @param {Object} consent - Stored consent object
+             * @returns {boolean}
+             */
+            function isConsentExpired(consent) {
+                if (!consent || !consent.timestamp) return true;
+                
+                const daysElapsed = (Date.now() - consent.timestamp) / (1000 * 60 * 60 * 24);
+                
+                // Dismissed expires after 7 days (shows banner again)
+                // Accept/Reject expire after 180 days
+                if (consent.status === CONSENT_DISMISSED) {
+                    return daysElapsed > DISMISS_DURATION_DAYS;
+                }
+                return daysElapsed > CONSENT_DURATION_DAYS;
+            }
+            
+            /**
+             * Check if analytics should be loaded
+             * Only true if user explicitly accepted AND consent hasn't expired
+             * @returns {boolean}
+             */
+            function shouldLoadAnalytics() {
+                const consent = getStoredConsent();
+                if (!consent || isConsentExpired(consent)) return false;
+                return consent.status === CONSENT_ACCEPTED;
+            }
+            
+            /**
+             * Check if banner should be shown
+             * @returns {boolean}
+             */
+            function shouldShowBanner() {
+                const consent = getStoredConsent();
+                // Show banner if no consent stored OR consent has expired
+                return !consent || isConsentExpired(consent);
+            }
+            
+            /**
+             * Accept consent - enables analytics
+             */
+            function accept() {
+                storeConsent(CONSENT_ACCEPTED);
+                hideBanner();
+                // Initialize PostHog and track consent event
+                if (typeof initPostHog === 'function') {
+                    initPostHog(true); // true = just granted consent
+                }
+            }
+            
+            /**
+             * Reject consent - no analytics
+             */
+            function reject() {
+                storeConsent(CONSENT_REJECTED);
+                hideBanner();
+            }
+            
+            /**
+             * Dismiss banner (×) - treat as soft rejection
+             * Per GDPR best practice: closing without choice ≠ consent
+             * Banner will reappear after 7 days to give user another chance
+             */
+            function dismiss() {
+                storeConsent(CONSENT_DISMISSED);
+                hideBanner();
+            }
+            
+            /**
+             * Hide the consent banner
+             */
+            function hideBanner() {
+                const banner = document.getElementById('cookieConsentBanner');
+                const overlay = document.getElementById('cookieOverlay');
+                if (banner) {
+                    banner.setAttribute('aria-hidden', 'true');
+                    banner.classList.add('cookie-banner--hidden');
+                }
+                if (overlay) {
+                    overlay.classList.add('cookie-overlay--hidden');
+                }
+            }
+            
+            /**
+             * Show the consent banner
+             */
+            function showBanner() {
+                const banner = document.getElementById('cookieConsentBanner');
+                const overlay = document.getElementById('cookieOverlay');
+                if (banner) {
+                    banner.setAttribute('aria-hidden', 'false');
+                    banner.classList.remove('cookie-banner--hidden');
+                    // Focus first interactive element for accessibility
+                    const firstButton = banner.querySelector('button');
+                    if (firstButton) {
+                        setTimeout(() => firstButton.focus(), 100);
+                    }
+                }
+                if (overlay) {
+                    overlay.classList.remove('cookie-overlay--hidden');
+                }
+            }
+            
+            /**
+             * Toggle preferences panel visibility
+             */
+            let analyticsEnabled = true; // Default to on
+            
+            function togglePreferences() {
+                const prefs = document.getElementById('cookiePreferences');
+                if (prefs) {
+                    prefs.classList.toggle('cookie-banner__preferences--visible');
+                }
+            }
+            
+            /**
+             * Toggle analytics preference
+             */
+            function toggleAnalytics() {
+                analyticsEnabled = !analyticsEnabled;
+                const toggle = document.getElementById('analyticsToggle');
+                if (toggle) {
+                    toggle.classList.toggle('cookie-banner__toggle--on', analyticsEnabled);
+                }
+            }
+            
+            /**
+             * Save preferences - accept or reject based on toggle state
+             */
+            function savePreferences() {
+                if (analyticsEnabled) {
+                    accept();
+                } else {
+                    reject();
+                }
+            }
+            
+            /**
+             * Initialize the consent banner
+             */
+            function init() {
+                if (shouldShowBanner()) {
+                    showBanner();
+                } else if (shouldLoadAnalytics()) {
+                    // User already consented, load analytics
+                    if (typeof initPostHog === 'function') {
+                        initPostHog(false); // false = returning user
+                    }
+                }
+                // If rejected/dismissed and not expired, do nothing (no banner, no analytics)
+            }
+            
+            // Public API
+            return {
+                shouldLoadAnalytics,
+                shouldShowBanner,
+                accept,
+                reject,
+                dismiss,
+                init,
+                togglePreferences,
+                toggleAnalytics,
+                savePreferences
+            };
+        })();
+    </script>
+    
+    <!-- ============================================
+         POSTHOG ANALYTICS (Consent-Gated)
+         PostHog is ONLY initialized after user accepts cookies.
+         This complies with GDPR/ePrivacy requirements.
+         ============================================ -->
+    <script>
+        // PostHog configuration
+        const POSTHOG_API_KEY = 'phc_dnl6DeJCzmkXoxbCBB76zohIRKJddLrBFIxsdMzbsyg';
+        const POSTHOG_API_HOST = 'https://us.i.posthog.com';
+        
+        // Track if PostHog has been initialized this session
+        let posthogInitialized = false;
+        
+        /**
+         * Initialize PostHog analytics
+         * @param {boolean} justGrantedConsent - True if user just clicked Accept
+         */
+        function initPostHog(justGrantedConsent = false) {
+            if (posthogInitialized) return;
+            
+            console.log('🍪 Consent granted - initializing PostHog...');
+            
+            // Load PostHog snippet
+            !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+            
+            // Initialize PostHog
+            posthog.init(POSTHOG_API_KEY, {
+                api_host: POSTHOG_API_HOST,
+                persistence: 'localStorage',
+                autocapture: false,
+                capture_pageview: false
+            });
+            
+            posthogInitialized = true;
+            
+            // If user just granted consent, track that event first
+            if (justGrantedConsent) {
+                // Wait for PostHog to be ready, then track consent and page view
+                setTimeout(() => {
+                    posthog.capture('consent_granted', { source: 'cookie_banner' });
+                    console.log('PostHog: consent_granted tracked');
+                    initTracking();
+                }, 300);
+            } else {
+                // Returning user who already consented
+                setTimeout(initTracking, 200);
+            }
+        }
+    </script>
+    
+    <style>
+        :root {
+            /* Brand colors from logo */
+            --peach-orange: #FF6B35;
+            --peach-orange-light: #FF8B5E;
+            --peach-orange-dark: #E55A28;
+            --wave-blue: #4A90D9;
+            --wave-blue-light: #6BA5E5;
+            --wave-blue-dark: #3A7BC4;
+            
+            /* Early access accent color */
+            --early-access-green: #10B981;
+            --early-access-green-light: #34D399;
+            
+            /* Light theme (default) - page background */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F5F5F7;
+            --bg-tertiary: #EAEAEC;
+            
+            /* Light theme cards */
+            --bg-card: #2D2D3A;
+            --bg-card-secondary: #252530;
+            
+            /* Light theme text on white background */
+            --text-primary: #1a1a1a;
+            --text-secondary: #555555;
+            --text-muted: #888888;
+            
+            /* Text on dark cards */
+            --text-on-card: #FFFFFF;
+            --text-on-card-secondary: #A0A0B0;
+            
+            /* Border colors */
+            --border-light: rgba(0, 0, 0, 0.1);
+            --border-card: rgba(255, 255, 255, 0.05);
+            
+            /* Gradients */
+            --gradient-hero: linear-gradient(135deg, var(--peach-orange) 0%, var(--wave-blue) 100%);
+            --gradient-card: linear-gradient(145deg, rgba(255, 107, 53, 0.08) 0%, rgba(74, 144, 217, 0.08) 100%);
+            --gradient-glow: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.08) 0%, transparent 70%);
+            --gradient-early-access: linear-gradient(135deg, var(--early-access-green) 0%, var(--wave-blue) 100%);
+            
+            /* Section padding system */
+            --section-pad-x: 2rem;
+            --section-pad-y: clamp(3.5rem, 6vw, 7rem);
+            --section-pad-y-tight: clamp(2.5rem, 4.5vw, 5rem);
+            
+            /* Hero safe offset (fixed nav) */
+            --nav-h: 56px;
+            --hero-pad-top: 16px;
+            --hero-pad-bottom: 24px;
+        }
+        
+        /* Dark theme */
+        [data-theme="dark"] {
+            --bg-primary: #0A0A0F;
+            --bg-secondary: #12121A;
+            --bg-tertiary: #1A1A25;
+            
+            --bg-card: #1E1E2A;
+            --bg-card-secondary: #16161F;
+            
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0B0;
+            --text-muted: #6B6B7B;
+            
+            --text-on-card: #FFFFFF;
+            --text-on-card-secondary: #A0A0B0;
+            
+            --border-light: rgba(255, 255, 255, 0.08);
+            --border-card: rgba(255, 255, 255, 0.08);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+            width: 100%;
+            /* Offset scroll targets to account for fixed nav */
+            scroll-padding-top: var(--nav-h);
+        }
+        
+        body {
+            font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        /* ============================================
+           NAVIGATION
+        ============================================ */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0.65rem 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+            overflow-x: hidden;
+            width: 100%;
+        }
+        
+        [data-theme="dark"] nav {
+            background: rgba(10, 10, 15, 0.9);
+        }
+        
+        nav.scrolled {
+            padding: 0.75rem 2rem;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+        
+        [data-theme="dark"] nav.scrolled {
+            background: rgba(10, 10, 15, 0.98);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+        
+        .logo img {
+            width: 40px;
+            height: 40px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+        
+        nav.scrolled .logo img {
+            width: 30px;
+            height: 30px;
+        }
+        
+        .logo-text {
+            font-weight: 600;
+            font-size: 1.25rem;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: font-size 0.3s ease;
+        }
+        
+        nav.scrolled .logo-text {
+            font-size: 1rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .nav-cta {
+            background: var(--gradient-early-access);
+            color: white !important;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            margin-left: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .theme-icon {
+            font-size: 1.1rem;
+            position: absolute;
+            transition: all 0.3s ease;
+        }
+        
+        .theme-icon.light {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        
+        .theme-icon.dark {
+            opacity: 0;
+            transform: rotate(-90deg);
+        }
+        
+        [data-theme="dark"] .theme-icon.light {
+            opacity: 0;
+            transform: rotate(90deg);
+        }
+        
+        [data-theme="dark"] .theme-icon.dark {
+            opacity: 1;
+            transform: rotate(0deg);
+        }
+        
+        /* ============================================
+           HERO SECTION
+        ============================================ */
+        .hero {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            margin-top: var(--nav-h);
+            padding: 12px 2rem 12px;
+            overflow: visible;
+        }
+        
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+        
+        .hero-glow {
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150%;
+            height: 80%;
+            background: var(--gradient-glow);
+            filter: blur(80px);
+            opacity: 0.6;
+        }
+        
+        .grid-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 107, 53, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 107, 53, 0.06) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+        }
+        
+        .hero-content {
+            max-width: 980px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+        }
+        
+        .early-access-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(74, 144, 217, 0.15) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--early-access-green);
+            margin-bottom: 16px;
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        .early-access-badge::before {
+            content: '🚀';
+        }
+        
+        h1 {
+            font-size: clamp(36px, 4vw, 52px);
+            font-weight: 700;
+            line-height: 1.04;
+            margin: 0 0 14px 0;
+            color: white;
+            animation: fadeInUp 0.8s ease 0.1s both;
+        }
+        
+        h1 .gradient,
+        .hero-tagline .gradient {
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-tagline {
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 1rem 0 16px 0;
+            letter-spacing: -0.01em;
+            animation: fadeInUp 0.8s ease 0.25s both;
+        }
+        
+        .hero-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 680px;
+            width: 100%;
+            margin: 0 0 12px 0;
+            line-height: 1.5;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+        
+        .hero-ctas {
+            display: flex;
+            gap: 0.9rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+            animation: fadeInUp 0.8s ease 0.5s both;
+        }
+        
+        .hero-note {
+            font-size: 0.8rem;
+            color: #888888;
+            margin-top: 0;
+            font-weight: 400;
+            animation: fadeInUp 0.8s ease 0.7s both;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            height: 48px;
+            padding: 0 24px;
+            border-radius: 11px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-early-access);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 35px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 2px solid var(--border-light);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--text-secondary);
+        }
+        
+        .hero-visual {
+            margin: 0 0 18px 0;
+            position: relative;
+            animation: fadeInUp 0.8s ease 0.3s both;
+            width: 100%;
+            max-width: 780px;
+            max-height: 380px;
+        }
+        
+        .app-screenshot {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.25rem;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 107, 53, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .app-screenshot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-card);
+            opacity: 0.5;
+        }
+        
+        .waveform-demo {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        
+        .demo-video {
+            width: 100%;
+            height: auto;
+            max-height: 380px;
+            object-fit: contain;
+            border-radius: 12px;
+            display: block;
+            cursor: pointer;
+        }
+        
+        .video-sound-toggle {
+            position: absolute;
+            bottom: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.65);
+            color: #ffffff;
+            height: 36px;
+            padding: 0 14px;
+            border-radius: 18px;
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            animation: subtlePulse 2s ease-in-out 3;
+        }
+        
+        .video-sound-toggle:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        
+        .video-sound-toggle:focus {
+            outline: 2px solid rgba(255, 107, 53, 0.8);
+            outline-offset: 2px;
+        }
+        
+        .video-sound-toggle.unmuted {
+            background: rgba(255, 107, 53, 0.85);
+            animation: none;
+        }
+        
+        .video-sound-toggle.faded {
+            opacity: 0.4;
+            transition: opacity 0.4s ease;
+        }
+        
+        .video-sound-toggle.faded:hover {
+            opacity: 1;
+        }
+        
+        @keyframes subtlePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+            50% { box-shadow: 0 0 20px 12px rgba(255, 255, 255, 0.9); }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* ============================================
+           SOCIAL PROOF
+        ============================================ */
+        .social-proof-inline {
+            margin-top: 0.5rem;
+            text-align: center;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+        
+        .social-proof-text {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .daw-logos {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            opacity: 1;
+        }
+        
+        .daw-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+        }
+        
+        /* ============================================
+           HOW IT WORKS
+        ============================================ */
+        .section-header {
+            text-align: center;
+            margin-bottom: clamp(2.5rem, 4vw, 4rem);
+        }
+        
+        .section-label {
+            color: var(--peach-orange);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+        }
+        
+        h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 850px;
+            margin: 0 auto;
+        }
+        
+        /* ============================================
+           FEATURES
+        ============================================ */
+        .features {
+            padding: var(--section-pad-y) var(--section-pad-x);
+            background: var(--bg-secondary);
+            scroll-margin-top: calc(var(--nav-h) - 120px);
+        }
+        
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2.5rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 1.75rem;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            border-color: rgba(255, 107, 53, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15) 0%, rgba(74, 144, 217, 0.15) 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            min-height: 1.5rem;
+            color: var(--text-on-card);
+        }
+        
+        .feature-card p {
+            color: var(--text-on-card-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+            min-height: 4.1rem;
+        }
+        
+        .feature-video-container {
+            margin-top: 1rem;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .feature-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: 12px;
+        }
+        
+        /* ============================================
+           EARLY ACCESS SECTION
+        ============================================ */
+        .early-access-section {
+            padding: var(--section-pad-y-tight) var(--section-pad-x);
+            padding-top: clamp(1.5rem, 3vw, 2.5rem);
+            background: var(--bg-primary);
+            scroll-margin-top: calc(var(--nav-h) - 80px);
+        }
+        
+        .early-access-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .early-access-cards {
+            display: flex;
+            justify-content: center;
+            margin: 2.5rem 0 1.5rem;
+            padding-top: 0.5rem;
+        }
+        
+        .early-access-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            border-radius: 16px;
+            padding: 1.5rem 1.75rem;
+            text-align: center;
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);
+            transform: scale(1.05);
+            width: 100%;
+            max-width: 380px;
+        }
+        
+        .early-access-card:hover {
+            transform: scale(1.05) translateY(-4px);
+        }
+        
+        .plan-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gradient-early-access);
+            padding: 0.35rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            white-space: nowrap;
+            z-index: 10;
+        }
+        
+        .plan-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-on-card);
+            margin-bottom: 0.35rem;
+            margin-top: 0.25rem;
+        }
+        
+        .plan-price {
+            margin-bottom: 0.5rem;
+        }
+        
+        .plan-price .price {
+            font-size: 2.25rem;
+            font-weight: 700;
+            background: var(--gradient-early-access);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .plan-price .period {
+            font-size: 0.85rem;
+            color: var(--text-on-card-secondary);
+            margin-left: 0.25rem;
+        }
+        
+        .plan-description {
+            color: var(--text-on-card-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .plan-features {
+            list-style: none;
+            text-align: left;
+            padding: 0;
+            margin: 0.75rem 0;
+        }
+        
+        .plan-features li {
+            padding: 0.35rem 0;
+            border-bottom: 1px solid var(--border-card);
+            color: var(--text-on-card-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .early-access-card .btn {
+            width: 100%;
+        }
+        
+        .plan-note {
+            color: var(--text-on-card-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .early-access-perks {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 2.5rem;
+        }
+        
+        .perk-item {
+            text-align: center;
+            padding: 1.25rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+        }
+        
+        .perk-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .perk-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
+        }
+        
+        .perk-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        /* ============================================
+           DOWNLOAD SECTION
+        ============================================ */
+        .email-collection {
+            padding: var(--section-pad-y) var(--section-pad-x);
+            background: var(--bg-secondary);
+        }
+        
+        .email-container {
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .download-buttons {
+            margin: 2rem 0;
+        }
+        
+        .download-note {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+        
+        .trial-benefits {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2.5rem;
+        }
+        
+        .trial-benefits h3 {
+            color: var(--text-on-card);
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .benefit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            text-align: left;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-on-card);
+            font-size: 0.95rem;
+        }
+        
+        .benefit-icon {
+            color: var(--early-access-green);
+            font-weight: 600;
+        }
+        
+        .upgrade-note {
+            margin-top: 1.5rem;
+            color: var(--text-on-card-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .upgrade-note a {
+            color: var(--early-access-green);
+            text-decoration: none;
+        }
+        
+        .upgrade-note a:hover {
+            text-decoration: underline;
+        }
+        
+        /* ============================================
+           FOOTER
+        ============================================ */
+        footer {
+            padding: 2rem var(--section-pad-x);
+            border-top: 1px solid var(--border-light);
+            background: var(--bg-primary);
+        }
+        
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .footer-brand img {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .footer-brand span {
+            font-weight: 600;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .footer-copyright {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        
+        /* ============================================
+           COOKIE BANNER
+        ============================================ */
+        .cookie-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 9998;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .cookie-overlay--hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .cookie-banner {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            z-index: 9999;
+            max-width: 480px;
+            width: calc(100% - 32px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .cookie-banner--hidden {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+            pointer-events: none;
+        }
+        
+        .cookie-banner__text {
+            color: var(--text-on-card);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        
+        .cookie-banner__link {
+            color: var(--peach-orange-light);
+            text-decoration: none;
+        }
+        
+        .cookie-banner__link:hover {
+            text-decoration: underline;
+        }
+        
+        .cookie-banner__actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-banner__btn {
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-family: inherit;
+        }
+        
+        .cookie-banner__btn--accept {
+            background: var(--gradient-hero);
+            color: white;
+        }
+        
+        .cookie-banner__btn--accept:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+        
+        .cookie-banner__manage-link {
+            color: var(--text-on-card-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .cookie-banner__manage-link:hover {
+            color: var(--text-on-card);
+        }
+        
+        .cookie-banner__preferences {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .cookie-banner__preferences--visible {
+            display: block;
+        }
+        
+        .cookie-banner__pref-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+        }
+        
+        .cookie-banner__pref-label {
+            color: var(--text-on-card);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .cookie-banner__pref-desc {
+            color: var(--text-on-card-secondary);
+            font-size: 0.8rem;
+        }
+        
+        .cookie-banner__toggle {
+            width: 44px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .cookie-banner__toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+        }
+        
+        .cookie-banner__toggle--on {
+            background: var(--early-access-green);
+        }
+        
+        .cookie-banner__toggle--on::after {
+            transform: translateX(20px);
+        }
+        
+        .cookie-banner__toggle--disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .cookie-banner__pref-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        .cookie-banner__btn--save {
+            background: var(--early-access-green);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .cookie-banner__btn--reject-all {
+            background: transparent;
+            color: var(--text-on-card-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        /* ============================================
+           RESPONSIVE
+        ============================================ */
+        @media (max-width: 900px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .early-access-perks {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            nav {
+                padding: 0.5rem 1rem;
+            }
+            
+            .nav-links a:not(.nav-cta) {
+                display: none;
+            }
+            
+            .hero {
+                padding: 8px 1rem;
+            }
+            
+            .hero-tagline {
+                font-size: 1.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 0.9rem;
+            }
+            
+            .early-access-cards {
+                margin: 2rem 0 1rem;
+            }
+            
+            .early-access-card {
+                padding: 1.5rem 1.25rem;
+                transform: none;
+                max-width: 100%;
+            }
+            
+            .early-access-card:hover {
+                transform: translateY(-4px);
+            }
+            
+            .plan-price .price {
+                font-size: 2rem;
+            }
+            
+            .early-access-perks {
+                grid-template-columns: 1fr;
+            }
+            
+            .benefit-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-container {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .hero-ctas {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .hero-ctas .btn {
+                width: 100%;
+            }
+            
+            .daw-logos {
+                gap: 0.5rem;
+            }
+            
+            .daw-logo {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Cookie Consent Overlay -->
+    <div id="cookieOverlay" class="cookie-overlay cookie-overlay--hidden"></div>
+    
+    <!-- Cookie Consent Banner -->
+    <div 
+        id="cookieConsentBanner" 
+        class="cookie-banner cookie-banner--hidden"
+        role="dialog"
+        aria-label="Cookie consent"
+        aria-hidden="true"
+        aria-describedby="cookieConsentText"
+    >
+        <p id="cookieConsentText" class="cookie-banner__text">
+            We use cookies to ensure you get the best experience on our website.
+            <a href="/privacy.html" class="cookie-banner__link">Learn more</a>
+        </p>
+        <div class="cookie-banner__actions">
+            <button 
+                class="cookie-banner__btn cookie-banner__btn--accept" 
+                onclick="CookieConsent.accept()"
+            >Accept</button>
+            <span 
+                class="cookie-banner__manage-link" 
+                onclick="CookieConsent.togglePreferences()"
+            >Manage preferences</span>
+        </div>
+        
+        <!-- Expanded preferences panel (hidden by default) -->
+        <div id="cookiePreferences" class="cookie-banner__preferences">
+            <div class="cookie-banner__pref-row">
+                <div>
+                    <div class="cookie-banner__pref-label">Essential cookies</div>
+                    <div class="cookie-banner__pref-desc">Required for the website to function</div>
+                </div>
+                <div class="cookie-banner__toggle cookie-banner__toggle--on cookie-banner__toggle--disabled"></div>
+            </div>
+            <div class="cookie-banner__pref-row">
+                <div>
+                    <div class="cookie-banner__pref-label">Analytics cookies</div>
+                    <div class="cookie-banner__pref-desc">Help us improve our website</div>
+                </div>
+                <div id="analyticsToggle" class="cookie-banner__toggle cookie-banner__toggle--on" onclick="CookieConsent.toggleAnalytics()"></div>
+            </div>
+            <div class="cookie-banner__pref-actions">
+                <button class="cookie-banner__btn--save" onclick="CookieConsent.savePreferences()">Save preferences</button>
+                <button class="cookie-banner__btn--reject-all" onclick="CookieConsent.reject()">Reject all</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <img src="icon.png" alt="AnyWave">
+                <span class="logo-text">AnyWave</span>
+            </a>
+            <div class="nav-links">
+                <a href="#how-it-works">How It Works</a>
+                <a href="#early-access" class="nav-cta">Get Free Access</a>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                    <span class="theme-icon light">☀️</span>
+                    <span class="theme-icon dark">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="hero-glow"></div>
+            <div class="grid-pattern"></div>
+        </div>
+        <div class="hero-content">
+            <div class="early-access-badge">Free Early Access</div>
+            <p class="hero-tagline">Shift <span class="gradient">Time.</span> Shape <span class="gradient">Sound.</span></p>
+            <p class="hero-subtitle">
+                Move the beats and drops to match your edit. AnyWave cuts and loops the gaps seamlessly. Get free access as an early tester.
+            </p>
+            
+            <div class="hero-visual">
+                <div class="app-screenshot">
+                    <div class="waveform-demo">
+                        <video class="demo-video" id="heroVideo" loop muted playsinline>
+                            <source src="demo-video.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <button class="video-sound-toggle" id="soundToggle" data-video="heroVideo" aria-label="Unmute demo video" aria-pressed="false">🔇 Unmute</button>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-ctas">
+                <a href="#early-access" class="btn btn-primary">
+                    <span>Get Free Access</span>
+                    <span>→</span>
+                </a>
+                <a href="#how-it-works" class="btn btn-secondary">
+                    <span>See How It Works</span>
+                </a>
+            </div>
+            
+            <!-- Social Proof -->
+            <div class="social-proof-inline">
+                <p class="social-proof-text">Perfect for any story telling workflow</p>
+                <div class="daw-logos">
+                    <span class="daw-logo">Commercials</span>
+                    <span class="daw-logo">Trailers</span>
+                    <span class="daw-logo">Social Media</span>
+                    <span class="daw-logo">YouTube</span>
+                    <span class="daw-logo">Film & TV</span>
+                    <span class="daw-logo">Podcasts</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="features" id="how-it-works">
+        <div class="features-container">
+            <div class="section-header">
+                <p class="section-label">How It Works</p>
+                <h2>Pin. Drag. Done.</h2>
+                <p class="section-subtitle">
+                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, AnyWave seamlessly reshapes everything in between.
+                </p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⏱️</div>
+                    <h3>Any Duration</h3>
+                    <p>Stretch or compress any track to fit your exact timing</p>
+                    <div class="feature-video-container">
+                        <video class="feature-video" loop muted playsinline autoplay>
+                            <source src="how-it-works-1.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📍</div>
+                    <h3>Pin Any Moment</h3>
+                    <p>Move the drop, chorus or buildup to land exactly where you need it.</p>
+                    <div class="feature-video-container">
+                        <video class="feature-video" loop muted playsinline autoplay>
+                            <source src="how-it-works-2.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Instant Preview</h3>
+                    <p>Hear changes in real-time as you drag.</p>
+                    <div class="feature-video-container">
+                        <video class="feature-video" loop muted playsinline autoplay>
+                            <source src="how-it-works-3.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Early Access Section -->
+    <section class="early-access-section" id="early-access">
+        <div class="early-access-container">
+            <div class="section-header">
+                <h2>Join the Early Access</h2>
+                <p class="section-subtitle">
+                    Help us shape the future of music editing
+                </p>
+            </div>
+            
+            <div class="early-access-cards">
+                <div class="early-access-card">
+                    <div class="plan-badge">🎉 Early Access</div>
+                    <h3 class="plan-name">Free Early Access</h3>
+                    <div class="plan-price">
+                        <span class="price">$0</span>
+                        <span class="period">forever</span>
+                    </div>
+                    <p class="plan-description">Full access to all features. Your feedback shapes the product.</p>
+                <ul class="plan-features">
+                    <li>✓ All editing features</li>
+                    <li>✓ Unlimited exports</li>
+                    <li>✓ Early updates</li>
+                    <li>✓ Direct feedback</li>
+                </ul>
+                <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary">
+                    Get Early Access
+                </a>
+                    <p class="plan-note">No credit card required</p>
+                </div>
+            </div>
+            
+        </div>
+    </section>
+
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="icon.png" alt="AnyWave">
+                <span>AnyWave</span>
+            </div>
+            <div class="footer-links">
+                <a href="/privacy.html">Privacy Policy</a>
+            </div>
+            <div class="footer-copyright">
+                <p>© 2026 AnyWave. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        
+        // Video sound toggle
+        const heroVideo = document.getElementById('heroVideo');
+        const soundToggle = document.getElementById('soundToggle');
+        
+        // Play video when it comes into view
+        const videoObserverOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.5 // Start playing when 50% of video is visible
+        };
+        
+        const videoObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.play().catch(e => {
+                        // Ignore autoplay errors
+                        console.log('Video play prevented:', e);
+                    });
+                } else {
+                    entry.target.pause();
+                }
+            });
+        }, videoObserverOptions);
+        
+        // Observe video
+        if (heroVideo) {
+            videoObserver.observe(heroVideo);
+        }
+        
+        function muteVideo(video, toggle) {
+            video.muted = true;
+            toggle.classList.remove('unmuted');
+            toggle.textContent = '🔇 Unmute';
+            toggle.setAttribute('aria-pressed', 'false');
+        }
+        
+        function unmuteVideo(video, toggle) {
+            video.muted = false;
+            toggle.classList.add('unmuted');
+            toggle.textContent = '🔊 Mute';
+            toggle.setAttribute('aria-pressed', 'true');
+        }
+        
+        // Handle sound toggle click
+        document.querySelectorAll('.video-sound-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const videoId = this.getAttribute('data-video');
+                const video = document.getElementById(videoId);
+                
+                if (video) {
+                    if (video.muted) {
+                        // Mute all other videos first
+                        document.querySelectorAll('video').forEach(v => {
+                            if (v !== video && !v.muted) {
+                                const otherToggle = document.querySelector(`[data-video="${v.id}"]`);
+                                if (otherToggle) muteVideo(v, otherToggle);
+                            }
+                        });
+                        unmuteVideo(video, this);
+                    } else {
+                        muteVideo(video, this);
+                    }
+                }
+            });
+        });
+        
+        // Fade out unmute button after initial period
+        setTimeout(() => {
+            document.querySelectorAll('.video-sound-toggle:not(.unmuted)').forEach(toggle => {
+                toggle.classList.add('faded');
+            });
+        }, 6000);
+        
+        // Navigation scroll effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+        
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        
+        // Check for saved theme preference or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+        
+        // ============================================
+        // POSTHOG TRACKING
+        // ============================================
+        
+        // Generate or retrieve anonymous UUID
+        function getOrCreateUUID() {
+            let uuid = localStorage.getItem('anywave_uuid');
+            if (!uuid) {
+                uuid = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('anywave_uuid', uuid);
+            }
+            return uuid;
+        }
+        
+        // Hash email for privacy-safe identification
+        async function hashEmail(email) {
+            const normalized = email.toLowerCase().trim();
+            const encoder = new TextEncoder();
+            const data = encoder.encode(normalized);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Get UTM parameters from URL
+        function getUTMParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                utm_source: params.get('utm_source'),
+                utm_medium: params.get('utm_medium'),
+                utm_campaign: params.get('utm_campaign'),
+                utm_content: params.get('utm_content'),
+                utm_term: params.get('utm_term')
+            };
+        }
+        
+        // Store UTMs in localStorage for attribution
+        function storeUTMs() {
+            const utms = getUTMParams();
+            if (utms.utm_source) {
+                localStorage.setItem('anywave_utms', JSON.stringify(utms));
+            }
+        }
+        
+        // Get stored UTMs
+        function getStoredUTMs() {
+            try {
+                return JSON.parse(localStorage.getItem('anywave_utms')) || {};
+            } catch {
+                return {};
+            }
+        }
+        
+        // Store UTMs on page load
+        storeUTMs();
+        
+        // Track page view with attribution
+        function trackLandingPageView() {
+            const uuid = getOrCreateUUID();
+            const utms = getStoredUTMs();
+            
+            // Build event properties
+            const eventProps = {
+                page: 'early_access',
+                url: window.location.href,
+                referrer: document.referrer || 'direct'
+            };
+            
+            // Include UTMs for attribution
+            if (utms.utm_source) eventProps.utm_source = utms.utm_source;
+            if (utms.utm_medium) eventProps.utm_medium = utms.utm_medium;
+            if (utms.utm_campaign) eventProps.utm_campaign = utms.utm_campaign;
+            
+            // Build person properties
+            const personProps = {
+                first_seen_page: 'early_access',
+                first_seen_url: window.location.href,
+                user_type: 'early_access'  // Tag user as early access from first page view
+            };
+            
+            if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
+            if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
+            if (utms.utm_campaign) personProps.first_utm_campaign = utms.utm_campaign;
+            
+            posthog.identify(uuid, {
+                $set_once: personProps
+            });
+            
+            // Track page view event with current UTMs
+            eventProps.page = 'early_access';
+            posthog.capture('page_viewed', eventProps);
+            
+            console.log('PostHog: page_viewed (early_access) tracked!');
+        }
+        
+        // Initialize tracking on page load (only called after consent)
+        function initTracking() {
+            console.log('=== PostHog Debug ===');
+            console.log('PostHog initialized:', posthogInitialized);
+            console.log('PostHog defined:', typeof posthog !== 'undefined');
+            console.log('Window location:', window.location.href);
+            
+            // Guard: Only track if consent was given
+            if (!posthogInitialized) {
+                console.log('PostHog: Skipping initTracking (not initialized)');
+                return;
+            }
+            
+            if (typeof posthog !== 'undefined' && posthog.capture) {
+                console.log('Calling trackLandingPageView...');
+                trackLandingPageView();
+            } else {
+                console.log('PostHog not ready yet, retrying in 500ms...');
+                setTimeout(initTracking, 500);
+            }
+        }
+        
+        // ============================================
+        // CONSENT-GATED INITIALIZATION
+        // Analytics only loads if user has consented.
+        // CookieConsent.init() handles:
+        //   - Showing banner if no consent yet
+        //   - Loading analytics if already consented
+        // ============================================
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => CookieConsent.init(), 100);
+            });
+        } else {
+            // DOM already loaded
+            setTimeout(() => CookieConsent.init(), 100);
+        }
+        
+        // ============================================
+        // CHECKOUT TRACKING
+        // Pass PostHog distinct_id to Lemon Squeezy for user aliasing
+        // ============================================
+        
+        const checkoutBtn = document.querySelector('.lemonsqueezy-button');
+        
+        if (checkoutBtn) {
+            // Base checkout URL
+            const baseHref = 'https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1';
+            
+            // Function to append PostHog ID to checkout URL
+            function updateCheckoutUrl() {
+                if (typeof posthog !== 'undefined' && posthog.get_distinct_id) {
+                    const distinctId = posthog.get_distinct_id();
+                    const newHref = `${baseHref}&checkout[custom][posthog_id]=${encodeURIComponent(distinctId)}`;
+                    checkoutBtn.setAttribute('href', newHref);
+                    console.log('Early access checkout URL updated with PostHog ID:', distinctId);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Try to update URL immediately, or wait for PostHog to load
+            if (!updateCheckoutUrl()) {
+                // PostHog not ready, try again after a delay
+                const checkInterval = setInterval(() => {
+                    if (updateCheckoutUrl()) {
+                        clearInterval(checkInterval);
+                    }
+                }, 500);
+                
+                // Stop checking after 10 seconds
+                setTimeout(() => clearInterval(checkInterval), 10000);
+            }
+            
+            // Track checkout started on click
+            checkoutBtn.addEventListener('click', () => {
+                // Update URL one more time right before click
+                updateCheckoutUrl();
+                
+                if (typeof posthog !== 'undefined') {
+                    const distinctId = posthog.get_distinct_id();
+                    posthog.capture('checkout_started', {
+                        plan: 'early_access',
+                        price: 0,
+                        source: 'early_access_page',
+                        posthog_distinct_id: distinctId
+                    });
+                    console.log('PostHog: checkout_started tracked with distinct_id:', distinctId);
+                }
+            });
+        }
+        
+        // ============================================
+        // LEMON SQUEEZY CHECKOUT SUCCESS - IDENTIFY USER
+        // This merges the anonymous visitor with their email
+        // ============================================
+        
+        // Hash email function (same as webhook worker)
+        async function hashEmailLS(email) {
+            const normalized = email.toLowerCase().trim();
+            const encoder = new TextEncoder();
+            const data = encoder.encode(normalized);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Handle checkout success - called from multiple sources
+        async function handleCheckoutSuccess(email, orderData) {
+            console.log('handleCheckoutSuccess called with email:', email ? '***' : 'none');
+            
+            if (!email) {
+                console.log('No email provided, cannot identify');
+                return;
+            }
+            
+            if (typeof posthog === 'undefined') {
+                console.log('PostHog not loaded');
+                return;
+            }
+            
+            try {
+                const hashedEmail = await hashEmailLS(email);
+                const currentDistinctId = posthog.get_distinct_id();
+                console.log('Identifying user with hashed email:', hashedEmail);
+                console.log('Current distinct_id:', currentDistinctId);
+                
+                // Identify the user - this merges anonymous with identified
+                posthog.identify(hashedEmail, {
+                    $anon_distinct_id: currentDistinctId,
+                    email_hash: hashedEmail,
+                    early_access: true,
+                    checkout_completed: true
+                });
+                
+                // Capture checkout_completed event
+                posthog.capture('checkout_completed_client', {
+                    order_id: orderData?.id,
+                    total: orderData?.total,
+                    currency: orderData?.currency,
+                    source: 'early_access_page_overlay'
+                });
+                
+                console.log('PostHog: User identified and checkout_completed_client tracked!');
+            } catch (err) {
+                console.error('Error in handleCheckoutSuccess:', err);
+            }
+        }
+        
+        // Method 1: Lemon Squeezy official event setup
+        function setupLemonSqueezyEvents() {
+            if (typeof window.LemonSqueezy !== 'undefined') {
+                console.log('Setting up LemonSqueezy events via API');
+                window.LemonSqueezy.Setup({
+                    eventHandler: function(event) {
+                        console.log('LemonSqueezy API event:', event);
+                        if (event.event === 'Checkout.Success' || event === 'Checkout.Success') {
+                            const email = event.data?.order?.user_email || event.data?.user_email;
+                            handleCheckoutSuccess(email, event.data?.order);
+                        }
+                    }
+                });
+            } else {
+                console.log('LemonSqueezy not loaded yet, retrying in 500ms');
+                setTimeout(setupLemonSqueezyEvents, 500);
+            }
+        }
+        
+        // Try to setup after page load
+        if (document.readyState === 'complete') {
+            setupLemonSqueezyEvents();
+        } else {
+            window.addEventListener('load', setupLemonSqueezyEvents);
+        }
+        
+        // Listen for Lemon Squeezy checkout events via postMessage
+        window.addEventListener('message', async function(event) {
+            // Log ALL messages for debugging
+            console.log('PostMessage received:', event.origin, event.data);
+            
+            // Accept messages from Lemon Squeezy domains
+            if (!event.origin.includes('lemonsqueezy.com')) return;
+            
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                
+                console.log('Lemon Squeezy event parsed:', data);
+                
+                // Check for checkout success
+                const eventName = data.event || data.type || data.name || '';
+                console.log('Event name:', eventName);
+                
+                if (eventName.toLowerCase().includes('success') || eventName.toLowerCase().includes('complete')) {
+                    console.log('Checkout successful via postMessage!', data);
+                    
+                    // Get customer email from various possible locations
+                    const email = data.data?.order?.user_email 
+                        || data.data?.user_email 
+                        || data.order?.user_email
+                        || data.user_email
+                        || data.data?.customer_email
+                        || data.customer_email;
+                    
+                    handleCheckoutSuccess(email, data.data?.order || data.order);
+                }
+            } catch (e) {
+                // Not a JSON message or not from Lemon Squeezy
+            }
+        });
+    </script>
+    
+    <!-- Lemon Squeezy Overlay Script -->
+    <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
+</body>
+</html>

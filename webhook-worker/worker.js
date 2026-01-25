@@ -114,41 +114,50 @@ async function handleWebhook(request, env) {
 }
 
 /**
- * Create alias in PostHog to connect old anonymous ID to new identified ID
- * This merges the anonymous user's history into the identified user's profile
+ * Merge anonymous user into identified user using PostHog's $identify event
+ * This is the correct server-side method (replaces deprecated $create_alias)
  */
-async function createAlias(oldAnonymousId, newIdentifiedId) {
+async function mergeUsers(oldAnonymousId, newIdentifiedId) {
     if (!oldAnonymousId || !newIdentifiedId) {
-        console.log('Cannot create alias: missing oldAnonymousId or newIdentifiedId');
+        console.log('Cannot merge: missing oldAnonymousId or newIdentifiedId');
         return false;
     }
     
-    // Don't alias if they're the same
+    // Don't merge if they're the same
     if (oldAnonymousId === newIdentifiedId) {
-        console.log('Skipping alias: IDs are the same');
+        console.log('Skipping merge: IDs are the same');
         return false;
     }
     
-    console.log('Creating alias:', { oldAnonymousId, newIdentifiedId });
+    console.log('Merging users:', { oldAnonymousId, newIdentifiedId });
     
-    const response = await fetch(`${POSTHOG_HOST}/capture/`, {
+    // Use the batch endpoint for more reliable processing
+    const response = await fetch(`${POSTHOG_HOST}/batch/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             api_key: POSTHOG_API_KEY,
-            event: '$create_alias',
-            distinct_id: newIdentifiedId,  // The new "main" identity (hashed email)
-            properties: {
-                alias: oldAnonymousId,     // The old anonymous ID to merge in
-                $lib: 'cloudflare-worker'
-            },
-            timestamp: new Date().toISOString()
+            batch: [
+                {
+                    event: '$identify',
+                    distinct_id: newIdentifiedId,
+                    properties: {
+                        $anon_distinct_id: oldAnonymousId,
+                        $set: {
+                            merged_from_anonymous: oldAnonymousId
+                        },
+                        $lib: 'cloudflare-worker'
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            ]
         })
     });
     
-    console.log('Alias response status:', response.status);
+    const responseText = await response.text();
+    console.log('Merge response status:', response.status, 'body:', responseText);
     return response.ok;
 }
 
@@ -193,27 +202,9 @@ async function handleOrderCreated(data) {
         console.log(`  OLD (anonymous): ${posthogId}`);
         console.log(`  NEW (identified): ${hashedEmail}`);
         
-        // Method 1: Create alias (old → new)
-        const aliasSuccess = await createAlias(posthogId, hashedEmail);
-        console.log('Alias result:', aliasSuccess ? 'SUCCESS' : 'FAILED');
-        
-        // Method 2: Also send $identify from the anonymous ID's perspective
-        // This tells PostHog "the anonymous user is now identified as hashed email"
-        const identifyResponse = await fetch(`${POSTHOG_HOST}/capture/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                api_key: POSTHOG_API_KEY,
-                event: '$identify',
-                distinct_id: hashedEmail,
-                properties: {
-                    $anon_distinct_id: posthogId,
-                    $lib: 'cloudflare-worker'
-                },
-                timestamp: new Date().toISOString()
-            })
-        });
-        console.log('Identify result:', identifyResponse.ok ? 'SUCCESS' : 'FAILED');
+        // Use the proper $identify event to merge users
+        const mergeSuccess = await mergeUsers(posthogId, hashedEmail);
+        console.log('Merge result:', mergeSuccess ? 'SUCCESS' : 'FAILED');
         
     } else if (!posthogId) {
         console.log('No posthog_id found in any custom_data location - cannot merge');
@@ -243,6 +234,29 @@ async function handleOrderCreated(data) {
     } else {
         console.error('Failed to send PostHog event');
     }
+    
+    // Step 3: Set user_type based on product (useful if page view didn't capture it)
+    const productName = order?.first_order_item?.product_name || '';
+    const isEarlyAccess = productName.toLowerCase().includes('early access');
+    
+    await fetch(`${POSTHOG_HOST}/capture/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            api_key: POSTHOG_API_KEY,
+            event: '$set',
+            distinct_id: hashedEmail,
+            properties: {
+                $set: {
+                    user_type: isEarlyAccess ? 'early_access' : 'standard',
+                    purchase_product: productName,
+                    purchase_date: new Date().toISOString()
+                }
+            },
+            timestamp: new Date().toISOString()
+        })
+    });
+    console.log(`User type set to: ${isEarlyAccess ? 'early_access' : 'standard'}`);
 }
 
 /**
