@@ -114,8 +114,9 @@ async function handleWebhook(request, env) {
 }
 
 /**
- * Merge anonymous user into identified user using PostHog's $create_alias event
- * This links the old anonymous ID to the new identified user (hashed email)
+ * Merge anonymous user into identified user using PostHog's $identify event
+ * with $anon_distinct_id property (the official server-side merge method)
+ * This makes newIdentifiedId (hashed email) the primary, merging oldAnonymousId into it
  */
 async function mergeUsers(oldAnonymousId, newIdentifiedId) {
     if (!oldAnonymousId || !newIdentifiedId) {
@@ -131,9 +132,9 @@ async function mergeUsers(oldAnonymousId, newIdentifiedId) {
     
     console.log('Merging users:', { oldAnonymousId, newIdentifiedId });
     
-    // Use $create_alias to link the anonymous ID to the identified user
+    // Use $identify with $anon_distinct_id to merge users (server-side method)
     // distinct_id = the NEW primary ID (hashed email) - this stays as the main identity
-    // alias = the OLD anonymous ID - this gets merged INTO the primary
+    // $anon_distinct_id = the OLD anonymous ID - this gets merged INTO the primary
     const response = await fetch(`${POSTHOG_HOST}/batch/`, {
         method: 'POST',
         headers: {
@@ -143,10 +144,10 @@ async function mergeUsers(oldAnonymousId, newIdentifiedId) {
             api_key: POSTHOG_API_KEY,
             batch: [
                 {
-                    event: '$create_alias',
+                    event: '$identify',
+                    distinct_id: newIdentifiedId,
                     properties: {
-                        distinct_id: newIdentifiedId,
-                        alias: oldAnonymousId,
+                        $anon_distinct_id: oldAnonymousId,
                         $lib: 'cloudflare-worker'
                     },
                     timestamp: new Date().toISOString()
@@ -156,7 +157,7 @@ async function mergeUsers(oldAnonymousId, newIdentifiedId) {
     });
     
     const responseText = await response.text();
-    console.log('Alias response status:', response.status, 'body:', responseText);
+    console.log('Identify/merge response status:', response.status, 'body:', responseText);
     return response.ok;
 }
 
