@@ -2119,8 +2119,9 @@
                 console.log('Current distinct_id:', currentDistinctId);
                 
                 // Create alias to link the current distinct ID to the hashed email
-                // This MUST happen before identify() changes the user ID
-                posthog.alias(hashedEmail, currentDistinctId);
+                // posthog.alias(alias, original_distinct_id) - alias gets added to original
+                // We want hashedEmail as primary, so currentDistinctId becomes the alias
+                posthog.alias(currentDistinctId, hashedEmail);
                 
                 // Identify the user with the hashed email
                 posthog.identify(hashedEmail, {
