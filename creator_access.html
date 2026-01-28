@@ -1882,16 +1882,12 @@
         // POSTHOG TRACKING
         // ============================================
         
-        // Generate or retrieve anonymous UUID
-        function getOrCreateUUID() {
-            // Check both keys for backwards compatibility, prefer ph_uuid
-            let uuid = localStorage.getItem('ph_uuid') || localStorage.getItem('anywave_uuid');
-            if (!uuid) {
-                uuid = crypto.randomUUID();
+        // Get PostHog's current distinct ID (auto-managed by PostHog SDK)
+        function getPostHogDistinctId() {
+            if (typeof posthog !== 'undefined' && posthog.get_distinct_id) {
+                return posthog.get_distinct_id();
             }
-            // Always store in ph_uuid for consistency across pages
-            localStorage.setItem('ph_uuid', uuid);
-            return uuid;
+            return null;
         }
         
         // Hash email for privacy-safe identification
@@ -1938,12 +1934,15 @@
         
         // Track page view with attribution
         function trackLandingPageView() {
-            const uuid = getOrCreateUUID();
             const utms = getStoredUTMs();
+            
+            console.log('=== UTM Debug ===');
+            console.log('Stored UTMs:', utms);
+            console.log('PostHog distinct_id:', getPostHogDistinctId());
             
             // Build event properties
             const eventProps = {
-                page: 'early_access',
+                page: 'creator_access',
                 url: window.location.href,
                 referrer: document.referrer || 'direct'
             };
@@ -1953,26 +1952,27 @@
             if (utms.utm_medium) eventProps.utm_medium = utms.utm_medium;
             if (utms.utm_campaign) eventProps.utm_campaign = utms.utm_campaign;
             
-            // Build person properties
+            // Build person properties (set via $set_once - first-touch attribution)
             const personProps = {
-                first_seen_page: 'early_access',
+                first_seen_page: 'creator_access',
                 first_seen_url: window.location.href,
-                user_type: 'early_access'  // Tag user as early access from first page view
+                user_type: 'creator_access'
             };
             
             if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
             if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
             if (utms.utm_campaign) personProps.first_utm_campaign = utms.utm_campaign;
             
-            posthog.identify(uuid, {
+            console.log('Event properties:', eventProps);
+            console.log('Person properties ($set_once):', personProps);
+            
+            // Track page view with person properties (no identify - use PostHog's auto ID)
+            posthog.capture('page_viewed', {
+                ...eventProps,
                 $set_once: personProps
             });
             
-            // Track page view event with current UTMs
-            eventProps.page = 'early_access';
-            posthog.capture('page_viewed', eventProps);
-            
-            console.log('PostHog: page_viewed (early_access) tracked!');
+            console.log('PostHog: page_viewed (creator_access) tracked!');
         }
         
         // Initialize tracking on page load (only called after consent)

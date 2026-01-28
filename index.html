@@ -3529,16 +3529,12 @@
         // POSTHOG TRACKING UTILITIES
         // ============================================
         
-        // Generate or retrieve anonymous UUID
-        function getOrCreateUUID() {
-            // Check both keys for backwards compatibility, prefer ph_uuid
-            let uuid = localStorage.getItem('ph_uuid') || localStorage.getItem('anywave_uuid');
-            if (!uuid) {
-                uuid = crypto.randomUUID();
+        // Get PostHog's current distinct ID (auto-managed by PostHog SDK)
+        function getPostHogDistinctId() {
+            if (typeof posthog !== 'undefined' && posthog.get_distinct_id) {
+                return posthog.get_distinct_id();
             }
-            // Always store in ph_uuid for consistency across pages
-            localStorage.setItem('ph_uuid', uuid);
-            return uuid;
+            return null;
         }
         
         // Hash email using SHA-256 (returns promise)
@@ -3582,17 +3578,18 @@
                 return;
             }
             
-            const uuid = getOrCreateUUID();
             const utms = captureUTMs();
             
             console.log('=== UTM Debug ===');
             console.log('URL:', window.location.href);
             console.log('Search params:', window.location.search);
             console.log('Captured UTMs:', utms);
+            console.log('PostHog distinct_id:', getPostHogDistinctId());
             
-            // Build properties object (only include non-null values)
+            // Build event properties (only include non-null values)
             const eventProps = {
-                url: window.location.href
+                url: window.location.href,
+                page: 'landing'
             };
             
             if (utms.utm_source) eventProps.utm_source = utms.utm_source;
@@ -3602,13 +3599,12 @@
             if (utms.utm_term) eventProps.utm_term = utms.utm_term;
             if (document.referrer) eventProps.referrer = document.referrer;
             
-            console.log('Event properties to send:', eventProps);
-            
-            // Identify user with UUID and set UTMs as user properties (first-touch)
+            // Set person properties via $set_once (first-touch attribution)
+            // This sets properties on the current anonymous user without changing their ID
             const personProps = {
                 first_seen_page: 'landing',
                 first_seen_url: window.location.href,
-                user_type: 'standard'  // Tag user as standard (won't overwrite 'early_access' due to $set_once)
+                user_type: 'standard'
             };
             if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
             if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
@@ -3618,27 +3614,26 @@
             personProps.first_visit_date = new Date().toISOString();
             if (document.referrer) personProps.first_referrer = document.referrer;
             
-            console.log('Person properties to set:', personProps);
+            console.log('Event properties:', eventProps);
+            console.log('Person properties ($set_once):', personProps);
             
-            posthog.identify(uuid, {
+            // Track page view with person properties (no identify - use PostHog's auto ID)
+            posthog.capture('page_viewed', {
+                ...eventProps,
                 $set_once: personProps
             });
-            
-            // Track page view event with current UTMs
-            eventProps.page = 'landing';
-            posthog.capture('page_viewed', eventProps);
             
             console.log('PostHog: page_viewed (landing) tracked!');
         }
         
         // Track application submission
         async function trackApplicationSubmitted(email, workType) {
-            const uuid = getOrCreateUUID();
+            const currentDistinctId = getPostHogDistinctId();
             const hashedEmail = await hashEmail(email);
             const utms = getStoredUTMs();
             
             console.log('=== Application Submit Debug ===');
-            console.log('UUID:', uuid);
+            console.log('PostHog distinct_id:', currentDistinctId);
             console.log('Hashed email:', hashedEmail);
             console.log('Work type:', workType);
             console.log('Stored UTMs:', utms);
@@ -3649,16 +3644,17 @@
                 return hashedEmail; // Still return hash for checkout flow
             }
             
-            // Create alias to link the anonymous UUID to the hashed email
+            // Alias the current anonymous ID to the hashed email
             // posthog.alias(alias, original_distinct_id) - alias gets added to original
-            // We want hashedEmail as primary, so UUID becomes the alias
-            posthog.alias(uuid, hashedEmail);
+            // We want hashedEmail as primary, so currentDistinctId becomes the alias
+            if (currentDistinctId) {
+                posthog.alias(currentDistinctId, hashedEmail);
+            }
             
-            // Update identity to hashed email with user properties
+            // Switch identity to hashed email with user properties
             posthog.identify(hashedEmail, {
                 $set: {
-                    work_type: workType,
-                    anonymous_uuid: uuid
+                    work_type: workType
                 },
                 $set_once: {
                     first_application_date: new Date().toISOString()
@@ -3668,8 +3664,7 @@
             // Build event properties
             const eventProps = {
                 hashed_email: hashedEmail,
-                work_type: workType,
-                anonymous_uuid: uuid
+                work_type: workType
             };
             
             // Include UTMs for attribution
