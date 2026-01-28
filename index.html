@@ -23,19 +23,6 @@
     </script>
     
     <!-- ============================================
-         EARLY ACCESS REDIRECT
-         Toggle: Set to true to redirect to early access page
-         When ready for normal launch, set EARLY_ACCESS_MODE = false
-         ============================================ -->
-    <script>
-        const EARLY_ACCESS_MODE = true;  // <-- TOGGLE THIS: true = early access, false = normal
-        
-        if (EARLY_ACCESS_MODE && !window.location.pathname.includes('early.html')) {
-            window.location.replace('early.html');
-        }
-    </script>
-    
-    <!-- ============================================
          COOKIE CONSENT MODULE
          GDPR-compliant: Analytics only loads after explicit consent.
          Storage: localStorage (consent persists 180 days, dismiss = 7 days)
@@ -261,7 +248,7 @@
          ============================================ -->
     <script>
         // PostHog configuration
-        const POSTHOG_API_KEY = 'phc_dnl6DeJCzmkXoxbCBB76zohIRKJddLrBFIxsdMzbsyg';
+        const POSTHOG_API_KEY = 'phc_UQ72wbfMQnS4IWPhPI28A0zeHQJjBW15oCzMeb1vyx8';
         const POSTHOG_API_HOST = 'https://us.i.posthog.com';
         
         // Track if PostHog has been initialized this session
@@ -768,20 +755,19 @@
             right: 18px;
             background: rgba(0, 0, 0, 0.65);
             color: #ffffff;
+            width: 52px;
             height: 36px;
-            padding: 0 14px;
+            padding: 0;
             border-radius: 18px;
-            font-size: 13px;
-            font-weight: 500;
             border: none;
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(4px);
-            font-family: inherit;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
             animation: subtlePulse 2s ease-in-out 3;
+            overflow: hidden;
         }
         
         .video-sound-toggle:hover {
@@ -810,6 +796,123 @@
         @keyframes subtlePulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
             50% { box-shadow: 0 0 20px 12px rgba(255, 255, 255, 0.9); }
+        }
+        
+        /* Sound wave bars animation - positioned behind text */
+        .sound-bars {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            top: 4px;
+            bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            opacity: 0.35;
+        }
+        
+        .sound-bars .bar {
+            flex: 1;
+            margin: 0 1px;
+            background: #ffffff;
+            border-radius: 2px;
+        }
+        
+        .sound-bars .bar:nth-child(1) {
+            height: 35%;
+            animation: soundBar1 0.3s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(2) {
+            height: 70%;
+            animation: soundBar2 0.35s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(3) {
+            height: 50%;
+            animation: soundBar3 0.25s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(4) {
+            height: 90%;
+            animation: soundBar4 0.4s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(5) {
+            height: 60%;
+            animation: soundBar5 0.28s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(6) {
+            height: 45%;
+            animation: soundBar1 0.32s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(7) {
+            height: 75%;
+            animation: soundBar2 0.38s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(8) {
+            height: 55%;
+            animation: soundBar3 0.33s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(9) {
+            height: 80%;
+            animation: soundBar4 0.27s ease-in-out infinite;
+        }
+        
+        .sound-bars .bar:nth-child(10) {
+            height: 40%;
+            animation: soundBar5 0.36s ease-in-out infinite;
+        }
+        
+        @keyframes soundBar1 {
+            0%, 100% { height: 35%; }
+            50% { height: 80%; }
+        }
+        
+        @keyframes soundBar2 {
+            0%, 100% { height: 70%; }
+            50% { height: 30%; }
+        }
+        
+        @keyframes soundBar3 {
+            0%, 100% { height: 50%; }
+            50% { height: 100%; }
+        }
+        
+        @keyframes soundBar4 {
+            0%, 100% { height: 90%; }
+            50% { height: 40%; }
+        }
+        
+        @keyframes soundBar5 {
+            0%, 100% { height: 60%; }
+            50% { height: 85%; }
+        }
+        
+        /* Red mute line crossing the waves */
+        .mute-line {
+            position: absolute;
+            left: 6px;
+            right: 6px;
+            top: 50%;
+            height: 3px;
+            background: #ff4444;
+            transform: translateY(-50%) rotate(-20deg);
+            z-index: 2;
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .video-sound-toggle.unmuted .mute-line {
+            display: none;
+        }
+        
+        .video-sound-toggle.unmuted .sound-bars {
+            opacity: 0.6;
         }
         
         .waveform-bars {
@@ -2458,9 +2561,8 @@
             }
             
             .video-sound-toggle {
+                width: 44px;
                 height: 28px;
-                padding: 0 10px;
-                font-size: 11px;
                 bottom: 10px;
                 right: 10px;
             }
@@ -3090,7 +3192,10 @@
                             <source src="demo-video.mp4" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
-                        <button class="video-sound-toggle" id="soundToggle" data-video="heroVideo" aria-label="Unmute demo video" aria-pressed="false">🔇 Unmute</button>
+                        <button class="video-sound-toggle" id="soundToggle" data-video="heroVideo" aria-label="Unmute demo video" aria-pressed="false">
+                            <span class="sound-bars"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></span>
+                            <span class="mute-line"></span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3318,17 +3423,15 @@
         
         function muteVideo(video, toggle) {
             video.muted = true;
-            toggle.textContent = '🔇 Unmute';
             toggle.classList.remove('unmuted', 'faded');
-            toggle.setAttribute('aria-label', 'Unmute demo video');
+            toggle.setAttribute('aria-label', 'Unmute video');
             toggle.setAttribute('aria-pressed', 'false');
         }
         
         function unmuteVideo(video, toggle) {
             video.muted = false;
-            toggle.textContent = '🔊 Mute';
             toggle.classList.add('unmuted');
-            toggle.setAttribute('aria-label', 'Mute demo video');
+            toggle.setAttribute('aria-label', 'Mute video');
             toggle.setAttribute('aria-pressed', 'true');
             
             // Fade out after 2.5 seconds
@@ -3544,10 +3647,12 @@
                 return hashedEmail; // Still return hash for checkout flow
             }
             
+            // Create alias to link the anonymous UUID to the hashed email
+            // This MUST happen before identify() changes the user ID
+            posthog.alias(hashedEmail, uuid);
+            
             // Update identity to hashed email with user properties
-            // The $anon_distinct_id property tells PostHog to merge the anonymous user's history
             posthog.identify(hashedEmail, {
-                $anon_distinct_id: uuid,  // This merges the anonymous user into the identified user
                 $set: {
                     work_type: workType,
                     anonymous_uuid: uuid
@@ -3752,10 +3857,12 @@
                 console.log('Identifying user with hashed email:', hashedEmail);
                 console.log('Current distinct_id:', currentDistinctId);
                 
-                // Identify the user - this merges anonymous with identified
-                // Include $anon_distinct_id to ensure proper aliasing
+                // Create alias to link the current distinct ID to the hashed email
+                // This MUST happen before identify() changes the user ID
+                posthog.alias(hashedEmail, currentDistinctId);
+                
+                // Identify the user with the hashed email
                 posthog.identify(hashedEmail, {
-                    $anon_distinct_id: currentDistinctId,  // Merge anonymous user's history
                     email_hash: hashedEmail,
                     checkout_completed: true
                 });
