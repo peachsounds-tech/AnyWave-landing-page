@@ -1703,6 +1703,26 @@
                 display: none;
             }
             
+            .nav-links {
+                gap: 0.5rem;
+            }
+            
+            .nav-cta {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.7rem;
+                border-radius: 6px;
+            }
+            
+            .theme-toggle {
+                width: 32px;
+                height: 32px;
+                margin-left: 0.25rem;
+            }
+            
+            .theme-icon {
+                font-size: 0.9rem;
+            }
+            
             .hero {
                 padding: 8px 1rem;
             }
@@ -1716,7 +1736,9 @@
             }
             
             .hero-reassurance {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
+                white-space: normal;
+                padding: 0 0.5rem;
             }
             
             .hero-orientation {
@@ -1742,6 +1764,36 @@
         }
         
         @media (max-width: 480px) {
+            nav {
+                padding: 0.4rem 0.75rem;
+            }
+            
+            .nav-cta {
+                padding: 0.3rem 0.5rem !important;
+                font-size: 0.6rem !important;
+                border-radius: 5px;
+                white-space: nowrap;
+            }
+            
+            .theme-toggle {
+                width: 28px;
+                height: 28px;
+                margin-left: 0.2rem;
+            }
+            
+            .theme-icon {
+                font-size: 0.8rem;
+            }
+            
+            .logo img {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .logo-text {
+                font-size: 0.95rem;
+            }
+            
             .hero-ctas {
                 flex-direction: column;
                 width: 100%;
