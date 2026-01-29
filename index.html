@@ -276,6 +276,12 @@
             
             posthogInitialized = true;
             
+            // Check for internal tester flag
+            if (localStorage.getItem('anywave_internal_tester') === 'true') {
+                posthog.setPersonProperties({ is_internal: true });
+                console.log('🔧 Internal tester flag detected - marked as internal user');
+            }
+            
             // If user just granted consent, track that event first
             if (justGrantedConsent) {
                 // Wait for PostHog to be ready, then track consent and page view
@@ -3074,7 +3080,7 @@
         aria-describedby="cookieConsentText"
     >
         <p id="cookieConsentText" class="cookie-banner__text">
-            We use cookies to ensure you get the best experience on our website.
+            We use cookies for anonymous usage statistics.
             <a href="/privacy.html" class="cookie-banner__link">Learn more</a>
         </p>
         <div class="cookie-banner__actions">

@@ -24,14 +24,16 @@
     
     <!-- ============================================
          COOKIE CONSENT MODULE
-         GDPR-compliant: Analytics only loads after explicit consent.
+         GDPR-compliant: Full analytics only loads after explicit consent.
+         Pre-consent: Tracks page_loaded and consent decision with memory-only persistence (no cookies)
          Storage: localStorage (consent persists 180 days, dismiss = 7 days)
          ============================================ -->
     <script>
         /**
          * CookieConsent Module
          * - Manages user consent for analytics tracking
-         * - Complies with EU cookie law (no tracking before consent)
+         * - Pre-consent: Uses memory-only PostHog to track page load and consent decisions
+         * - Post-consent: Switches to localStorage for full user journey tracking
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
@@ -118,7 +120,11 @@
             function accept() {
                 storeConsent(CONSENT_ACCEPTED);
                 hideBanner();
-                // Initialize PostHog and track consent event
+                // Track acceptance (still in memory mode)
+                if (typeof trackConsentDecision === 'function') {
+                    trackConsentDecision('accepted');
+                }
+                // Upgrade to full PostHog tracking with localStorage
                 if (typeof initPostHog === 'function') {
                     initPostHog(true); // true = just granted consent
                 }
@@ -130,6 +136,10 @@
             function reject() {
                 storeConsent(CONSENT_REJECTED);
                 hideBanner();
+                // Track rejection (still in memory mode, no cookies)
+                if (typeof trackConsentDecision === 'function') {
+                    trackConsentDecision('rejected');
+                }
             }
             
             /**
@@ -140,6 +150,10 @@
             function dismiss() {
                 storeConsent(CONSENT_DISMISSED);
                 hideBanner();
+                // Track dismissal (still in memory mode, no cookies)
+                if (typeof trackConsentDecision === 'function') {
+                    trackConsentDecision('dismissed');
+                }
             }
             
             /**
@@ -242,43 +256,141 @@
     </script>
     
     <!-- ============================================
-         POSTHOG ANALYTICS (Consent-Gated)
-         PostHog is ONLY initialized after user accepts cookies.
-         This complies with GDPR/ePrivacy requirements.
+         POSTHOG ANALYTICS
+         Two-phase initialization:
+         1. Pre-consent: memory-only mode to track page_loaded and consent decisions
+         2. Post-consent: localStorage mode for full user journey tracking
          ============================================ -->
     <script>
         // PostHog configuration
         const POSTHOG_API_KEY = 'phc_EBdSdd5WT94dzQX1MJiH4SlrPo78IiL0zOPk2YoyMIC';
         const POSTHOG_API_HOST = 'https://us.i.posthog.com';
         
-        // Track if PostHog has been initialized this session
-        let posthogInitialized = false;
+        // Track initialization states
+        let posthogPreConsentInitialized = false;
+        let posthogFullyInitialized = false;
+        let preConsentAnonymousId = null;
+        
+        // Load PostHog snippet (runs immediately)
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
         
         /**
-         * Initialize PostHog analytics
-         * @param {boolean} justGrantedConsent - True if user just clicked Accept
+         * Check if user has already consented (used to skip pre-consent mode)
          */
-        function initPostHog(justGrantedConsent = false) {
-            if (posthogInitialized) return;
+        function hasExistingConsent() {
+            try {
+                const data = localStorage.getItem('anywave_analytics_consent');
+                if (!data) return false;
+                const consent = JSON.parse(data);
+                if (consent.status !== 'accepted') return false;
+                // Check if consent has expired (180 days)
+                const daysElapsed = (Date.now() - consent.timestamp) / (1000 * 60 * 60 * 24);
+                return daysElapsed <= 180;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        /**
+         * Initialize PostHog in pre-consent mode (memory only, no cookies)
+         * This allows tracking page_loaded and consent decisions without violating GDPR
+         * SKIP this for returning users who already consented - they go straight to full mode
+         */
+        function initPostHogPreConsent() {
+            if (posthogPreConsentInitialized) return;
             
-            console.log('🍪 Consent granted - initializing PostHog...');
+            // Skip pre-consent mode for returning users who already consented
+            // They will be initialized in full mode by CookieConsent.init()
+            if (hasExistingConsent()) {
+                console.log('📊 User already consented, skipping pre-consent mode');
+                return;
+            }
             
-            // Load PostHog snippet
-            !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+            console.log('📊 Initializing PostHog in pre-consent (memory-only) mode...');
             
-            // Initialize PostHog
+            // Initialize with memory persistence (no cookies/localStorage)
             posthog.init(POSTHOG_API_KEY, {
                 api_host: POSTHOG_API_HOST,
-                persistence: 'localStorage',
+                persistence: 'memory',           // No cookies stored
                 autocapture: false,
-                capture_pageview: false
+                capture_pageview: false,
+                person_profiles: 'identified_only'  // Don't create person profiles yet
             });
             
-            posthogInitialized = true;
+            posthogPreConsentInitialized = true;
+            
+            // Wait for PostHog to be ready, then capture the anonymous ID and track page load
+            setTimeout(() => {
+                preConsentAnonymousId = posthog.get_distinct_id();
+                console.log('📊 Pre-consent anonymous ID:', preConsentAnonymousId);
+                
+                // Track page load (before consent decision)
+                posthog.capture('page_loaded', {
+                    page: 'creator_access',
+                    url: window.location.href,
+                    referrer: document.referrer || 'direct'
+                });
+                console.log('📊 PostHog: page_loaded tracked (pre-consent)');
+            }, 300);
+        }
+        
+        /**
+         * Track consent decision (works in memory mode)
+         * @param {string} decision - 'accepted', 'rejected', or 'dismissed'
+         */
+        function trackConsentDecision(decision) {
+            if (typeof posthog !== 'undefined' && posthog.capture) {
+                posthog.capture('consent_' + decision, {
+                    page: 'creator_access',
+                    source: 'cookie_banner'
+                });
+                console.log('📊 PostHog: consent_' + decision + ' tracked');
+            }
+        }
+        
+        /**
+         * Initialize/upgrade PostHog to full tracking mode after consent
+         * For new users: Switches from memory to localStorage and preserves the anonymous ID
+         * For returning users: Initializes directly in localStorage mode
+         */
+        function initPostHog(justGrantedConsent = false) {
+            if (posthogFullyInitialized) return;
+            
+            console.log('🍪 Initializing PostHog in full tracking mode...');
+            
+            // Check if PostHog was already initialized in pre-consent mode
+            if (posthogPreConsentInitialized) {
+                // Upgrade from memory to localStorage
+                console.log('📊 Upgrading from pre-consent mode...');
+                posthog.set_config({ 
+                    persistence: 'localStorage',
+                    person_profiles: 'always'
+                });
+                // Explicitly create person profile for this user
+                posthog.createPersonProfile();
+                console.log('📊 Person profile created for ID:', posthog.get_distinct_id());
+            } else {
+                // Returning user - initialize directly in localStorage mode
+                console.log('📊 Returning user - initializing with localStorage...');
+                posthog.init(POSTHOG_API_KEY, {
+                    api_host: POSTHOG_API_HOST,
+                    persistence: 'localStorage',
+                    autocapture: false,
+                    capture_pageview: false,
+                    person_profiles: 'always'
+                });
+            }
+            
+            posthogFullyInitialized = true;
+            
+            // Check for internal tester flag
+            if (localStorage.getItem('anywave_internal_tester') === 'true') {
+                posthog.setPersonProperties({ is_internal: true });
+                console.log('🔧 Internal tester flag detected - marked as internal user');
+            }
             
             // If user just granted consent, track that event first
             if (justGrantedConsent) {
-                // Wait for PostHog to be ready, then track consent and page view
                 setTimeout(() => {
                     posthog.capture('consent_granted', { source: 'cookie_banner' });
                     console.log('PostHog: consent_granted tracked');
@@ -289,6 +401,9 @@
                 setTimeout(initTracking, 200);
             }
         }
+        
+        // Initialize pre-consent tracking immediately
+        initPostHogPreConsent();
     </script>
     
     <style>
@@ -1635,7 +1750,7 @@
         aria-describedby="cookieConsentText"
     >
         <p id="cookieConsentText" class="cookie-banner__text">
-            We use cookies to ensure you get the best experience on our website.
+            We use cookies for anonymous usage statistics.
             <a href="/privacy.html" class="cookie-banner__link">Learn more</a>
         </p>
         <div class="cookie-banner__actions">
@@ -2028,12 +2143,12 @@
         // Initialize tracking on page load (only called after consent)
         function initTracking() {
             console.log('=== PostHog Debug ===');
-            console.log('PostHog initialized:', posthogInitialized);
+            console.log('PostHog fully initialized:', posthogFullyInitialized);
             console.log('PostHog defined:', typeof posthog !== 'undefined');
             console.log('Window location:', window.location.href);
             
             // Guard: Only track if consent was given
-            if (!posthogInitialized) {
+            if (!posthogFullyInitialized) {
                 console.log('PostHog: Skipping initTracking (not initialized)');
                 return;
             }
