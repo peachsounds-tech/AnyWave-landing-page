@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting... – AnyWave</title>
+    <link rel="icon" type="image/png" href="../icon.png">
+    <script>
+        // Creator redirect handler
+        // URL format: anywave.ai/for/CreatorName -> redirects to creator_access with UTM params
+        (function() {
+            const path = window.location.pathname;
+            const match = path.match(/^\/for\/([^\/]+)\/?$/);
+            
+            if (match) {
+                const creatorName = match[1];
+                const targetUrl = '/creator_access/?utm_source=Youtube&utm_medium=private_link&utm_campaign=creator_access&utm_content=' + encodeURIComponent(creatorName);
+                window.location.replace(targetUrl);
+            } else {
+                // No creator specified, redirect to main creator access
+                window.location.replace('/creator_access/');
+            }
+        })();
+    </script>
+    <style>
+        body {
+            font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .loading {
+            text-align: center;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <p>Redirecting...</p>
+    </div>
+</body>
+</html>
