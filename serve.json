@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/for/:creator", "destination": "/404.html" }
+  ]
+}

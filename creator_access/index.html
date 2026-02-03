@@ -263,7 +263,7 @@
          ============================================ -->
     <script>
         // PostHog configuration
-        const POSTHOG_API_KEY = 'phc_tS9sR9EOx1B9BiUvbTDZExzSDkoJ7CRsTBskxxf0Af4';
+        const POSTHOG_API_KEY = 'phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG';
         const POSTHOG_API_HOST = 'https://us.i.posthog.com';
         
         // Track initialization states
@@ -337,6 +337,12 @@
             
             posthogPreConsentInitialized = true;
             
+            // Register internal flag immediately so it applies to ALL events (including auto-captured ones like Web vitals)
+            if (isInternalTester) {
+                posthog.register({ is_internal: true });
+                console.log('🔧 Internal tester flag registered (pre-consent)');
+            }
+            
             // Wait for PostHog to be ready, then capture the anonymous ID and track page load
             setTimeout(() => {
                 preConsentAnonymousId = posthog.get_distinct_id();
@@ -389,6 +395,12 @@
                 // Explicitly create person profile for this user
                 posthog.createPersonProfile();
                 console.log('📊 Person profile created for ID:', posthog.get_distinct_id());
+                
+                // Re-register internal flag after upgrade (in case it wasn't persisted)
+                if (isInternalTester) {
+                    posthog.register({ is_internal: true });
+                    console.log('🔧 Internal tester flag re-registered after upgrade');
+                }
             } else {
                 // Returning user - initialize directly in localStorage mode
                 console.log('📊 Returning user - initializing with localStorage...');
@@ -399,15 +411,20 @@
                     capture_pageview: false,
                     person_profiles: 'always'
                 });
+                
+                // Register internal flag IMMEDIATELY after init (before any auto-captured events)
+                if (isInternalTester) {
+                    posthog.register({ is_internal: true });
+                    console.log('🔧 Internal tester flag registered (returning user)');
+                }
             }
             
             posthogFullyInitialized = true;
             
-            // Check for internal tester flag
-            if (localStorage.getItem('anywave_internal_tester') === 'true') {
-                posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
-                posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
-                console.log('🔧 Internal tester flag detected - marked as internal user');
+            // Set person properties for internal tester (only needs to be done once)
+            if (isInternalTester) {
+                posthog.setPersonProperties({ is_internal: true });
+                console.log('🔧 Internal tester person properties set');
             }
             
             // If user just granted consent, track that event first
