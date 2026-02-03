@@ -2173,7 +2173,7 @@
             };
         }
         
-        // Store UTMs in localStorage for attribution
+        // Store UTMs in localStorage for attribution (only after consent)
         function storeUTMs() {
             const utms = getUTMParams();
             if (utms.utm_source) {
@@ -2189,9 +2189,6 @@
                 return {};
             }
         }
-        
-        // Store UTMs on page load
-        storeUTMs();
         
         // Track page view with attribution
         function trackLandingPageView() {
@@ -2253,6 +2250,9 @@
                 console.log('PostHog: Skipping initTracking (not initialized)');
                 return;
             }
+            
+            // Store UTMs now that we have consent
+            storeUTMs();
             
             if (typeof posthog !== 'undefined' && posthog.capture) {
                 console.log('Calling trackLandingPageView...');
