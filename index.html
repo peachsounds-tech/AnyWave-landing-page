@@ -1514,17 +1514,24 @@
         .pricing-container {
             max-width: 1200px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
         .pricing-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            display: flex;
+            justify-content: center;
             gap: 1.5rem;
             margin: 2.5rem 0 1.5rem;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
             padding-top: 0.5rem;
+            width: 100%;
+        }
+        
+        .pricing-cards .pricing-card {
+            flex: 0 1 380px;
+            max-width: 380px;
+            min-width: 280px;
         }
         
         .pricing-card {
@@ -1998,6 +2005,7 @@
             .pricing-cards {
                 gap: 1.5rem;
                 margin: 1rem auto;
+                flex-wrap: wrap;
             }
             
             .pricing-card {
@@ -2669,6 +2677,12 @@
             .pricing-cards {
                 gap: 1.25rem;
                 padding-top: 1.5rem;
+                flex-wrap: wrap;
+            }
+            
+            .pricing-cards .pricing-card {
+                flex: 1 1 100%;
+                max-width: 380px;
             }
             
             .pricing-card {
@@ -2914,17 +2928,19 @@
         /* Mobile nav toggle */
         
         /* ============================================
-           COOKIE BANNER
-        ============================================ */
+           COOKIE CONSENT BANNER
+           Prominent design - hard to ignore
+           ============================================ */
+        
+        /* Overlay to dim page and force attention */
         .cookie-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.3);
-            z-index: 9998;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
             opacity: 1;
             transition: opacity 0.3s ease;
         }
-        
         .cookie-overlay--hidden {
             opacity: 0;
             pointer-events: none;
@@ -2932,118 +2948,137 @@
         
         .cookie-banner {
             position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 1.25rem 1.5rem;
-            z-index: 9999;
-            max-width: 480px;
-            width: calc(100% - 32px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            transition: all 0.3s ease;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            
+            background: rgba(15, 15, 22, 0.99);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+            
+            padding: 2rem 2rem;
+            
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            
+            opacity: 1;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
         
         .cookie-banner--hidden {
             opacity: 0;
-            transform: translateX(-50%) translateY(20px);
             pointer-events: none;
+            transform: translateY(100%);
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            .cookie-banner { transition: opacity 0.1s ease; }
+            .cookie-overlay { transition: opacity 0.1s ease; }
+            .cookie-banner--hidden { transform: translateY(100%); }
         }
         
         .cookie-banner__text {
-            color: var(--text-on-card);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
+            font-size: 0.9375rem;
             line-height: 1.5;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
         }
         
         .cookie-banner__link {
-            color: var(--peach-orange-light);
-            text-decoration: none;
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: underline;
+            margin-left: 0.25rem;
         }
         
         .cookie-banner__link:hover {
-            text-decoration: underline;
+            color: rgba(255, 255, 255, 0.9);
         }
         
         .cookie-banner__actions {
             display: flex;
             align-items: center;
             gap: 1rem;
-            flex-wrap: wrap;
-        }
-        
-        .cookie-banner__btn {
-            padding: 0.6rem 1.25rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-            font-family: inherit;
+            flex-shrink: 0;
         }
         
         .cookie-banner__btn--accept {
-            background: var(--gradient-hero);
+            background: #3b82f6;
             color: white;
+            border: none;
+            padding: 0.7rem 1.75rem;
+            border-radius: 6px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
         
         .cookie-banner__btn--accept:hover {
+            background: #2563eb;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
         
         .cookie-banner__manage-link {
-            color: var(--text-on-card-secondary);
-            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8125rem;
             cursor: pointer;
-            text-decoration: underline;
+            transition: color 0.15s;
         }
         
         .cookie-banner__manage-link:hover {
-            color: var(--text-on-card);
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: underline;
         }
         
+        /* Expanded preferences panel */
         .cookie-banner__preferences {
             display: none;
-            margin-top: 1rem;
+            width: 100%;
             padding-top: 1rem;
+            margin-top: 1rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+            flex-direction: column;
+            gap: 0.75rem;
         }
         
-        .cookie-banner__preferences--visible {
-            display: block;
+        .cookie-banner__preferences.cookie-banner__preferences--visible {
+            display: flex;
         }
         
         .cookie-banner__pref-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.75rem 0;
+            padding: 0.5rem 0;
         }
         
         .cookie-banner__pref-label {
-            color: var(--text-on-card);
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.8);
         }
         
         .cookie-banner__pref-desc {
-            color: var(--text-on-card-secondary);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 2px;
         }
         
         .cookie-banner__toggle {
+            position: relative;
             width: 44px;
             height: 24px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 12px;
-            position: relative;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: background 0.2s;
+            flex-shrink: 0;
         }
         
         .cookie-banner__toggle::after {
@@ -3055,11 +3090,11 @@
             height: 20px;
             background: white;
             border-radius: 50%;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s;
         }
         
         .cookie-banner__toggle--on {
-            background: var(--early-access-green);
+            background: #3b82f6;
         }
         
         .cookie-banner__toggle--on::after {
@@ -3067,37 +3102,60 @@
         }
         
         .cookie-banner__toggle--disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
         }
         
         .cookie-banner__pref-actions {
             display: flex;
             gap: 0.75rem;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
         
         .cookie-banner__btn--save {
-            background: var(--early-access-green);
+            background: #3b82f6;
             color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
             border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
             cursor: pointer;
-            font-family: inherit;
+            transition: background 0.15s;
+        }
+        
+        .cookie-banner__btn--save:hover {
+            background: #2563eb;
         }
         
         .cookie-banner__btn--reject-all {
             background: transparent;
-            color: var(--text-on-card-secondary);
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
             cursor: pointer;
-            font-family: inherit;
+            transition: all 0.15s;
+        }
+        
+        .cookie-banner__btn--reject-all:hover {
+            color: rgba(255, 255, 255, 0.8);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        /* Mobile */
+        @media (max-width: 640px) {
+            .cookie-banner {
+                padding: 1.25rem 1.25rem;
+                flex-direction: column;
+                gap: 0.875rem;
+                text-align: center;
+            }
+            .cookie-banner__actions {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
     <!-- Lemon Squeezy Checkout Overlay -->
@@ -3284,28 +3342,6 @@
             </div>
             
             <div class="pricing-cards">
-                <!-- Pro Plan (Featured) -->
-                <div class="pricing-card featured">
-                    <div class="plan-badge">⭐ RECOMMENDED</div>
-                    <h3 class="plan-name">AnyWave Pro</h3>
-                    <div class="plan-price">
-                        <span class="price">$9.99</span>
-                        <span class="period">/month</span>
-                    </div>
-                    <p class="plan-description">Full access with flexible monthly billing.</p>
-                    <ul class="plan-features">
-                        <li>✓ Unlimited projects</li>
-                        <li>✓ Unlimited exports</li>
-                        <li>✓ All future updates</li>
-                        <li>✓ Premium support</li>
-                        <li>✓ Commercial license</li>
-                    </ul>
-                    <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/5585ea8e-18e3-4608-ab13-fb9bac5f36c4?embed=1" class="lemonsqueezy-button btn btn-primary btn-large">
-                        Start Subscription
-                    </a>
-                    <p class="plan-note">Cancel anytime</p>
-                </div>
-                
                 <!-- Free Trial -->
                 <div class="pricing-card">
                     <h3 class="plan-name">Free Trial</h3>
@@ -3321,55 +3357,33 @@
                         <li>✗ Export disabled</li>
                         <li>&nbsp;</li>
                     </ul>
-                    <a href="#download" class="btn btn-secondary btn-large">
+                    <a href="download-trial.html" class="btn btn-secondary btn-large">
                         Download First
                     </a>
-                    <p class="plan-note">No credit card required</p>
+                    <p class="plan-note">macOS 11+ • Intel & Apple Silicon • 25MB</p>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Download Section -->
-    <section class="email-collection" id="download">
-        <div class="email-container">
-            <div class="section-header">
-                <h2>Download Free Trial</h2>
-                <p class="section-subtitle">
-                    Test drive all features. Upgrade when you love it.
-                </p>
-            </div>
-            
-            <div class="download-buttons">
-                <a href="https://github.com/peachsounds-tech/anywave-releases/releases/latest/download/AnyWave.dmg" class="btn btn-primary btn-large" id="downloadBtn">
-                    <span>⬇ Download for Mac</span>
-                </a>
-                <p class="download-note">macOS 11+ • Intel & Apple Silicon • 25MB</p>
-            </div>
-            
-            <div class="trial-benefits">
-                <h3>What you'll get in the trial:</h3>
-                <div class="benefit-grid">
-                    <div class="benefit-item">
-                        <span class="benefit-icon">✓</span>
-                        <span>Full editing capabilities</span>
+                
+                <!-- Pro Plan (Featured) -->
+                <div class="pricing-card featured">
+                    <div class="plan-badge">⭐ RECOMMENDED</div>
+                    <h3 class="plan-name">AnyWave Pro</h3>
+                    <div class="plan-price">
+                        <span class="price">$3.99</span>
+                        <span class="period">/month</span>
                     </div>
-                    <div class="benefit-item">
-                        <span class="benefit-icon">✓</span>
-                        <span>Real-time preview</span>
-                    </div>
-                    <div class="benefit-item">
-                        <span class="benefit-icon">✓</span>
-                        <span>No time limit</span>
-                    </div>
-                    <div class="benefit-item benefit-item--disabled">
-                        <span class="benefit-icon">✗</span>
-                        <span>Export disabled</span>
-                    </div>
+                    <p class="plan-description">Full access with flexible monthly billing.</p>
+                    <ul class="plan-features">
+                        <li>✓ Unlimited projects</li>
+                        <li>✓ Unlimited exports</li>
+                        <li>✓ All future updates</li>
+                        <li>✓ Premium support</li>
+                        <li>✓ Commercial license</li>
+                    </ul>
+                    <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/5585ea8e-18e3-4608-ab13-fb9bac5f36c4?embed=1" class="lemonsqueezy-button btn btn-primary btn-large">
+                        Start Subscription
+                    </a>
+                    <p class="plan-note">Cancel anytime</p>
                 </div>
-                <p class="upgrade-note">
-                    Ready to export? <a href="#pricing">Upgrade to Pro</a> instantly from within the app.
-                </p>
             </div>
         </div>
     </section>
@@ -3795,7 +3809,7 @@
                     posthog.capture('checkout_started', {
                         ...getBaseEventProps(),
                         plan: 'pro',
-                        price: 9.99,
+                        price: 3.99,
                         currency: 'USD',
                         billing_period: 'monthly',
                         source: 'landing_page',
