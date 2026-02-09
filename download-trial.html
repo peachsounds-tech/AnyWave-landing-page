@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download AnyWave</title>
+    <title>Download AnyWave Free Trial</title>
     <style>
         * {
             margin: 0;
@@ -71,13 +71,9 @@
         .status-item {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.75rem;
-            margin-bottom: 0.75rem;
             font-size: 1rem;
-        }
-        
-        .status-item:last-child {
-            margin-bottom: 0;
         }
         
         .status-icon {
@@ -131,6 +127,24 @@
             line-height: 1.8;
             font-size: 0.95rem;
         }
+        
+        .trial-note {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .trial-note a {
+            color: #f8b500;
+            text-decoration: none;
+        }
+        
+        .trial-note a:hover {
+            text-decoration: underline;
+        }
     </style>
     
     <!-- PostHog -->
@@ -145,8 +159,8 @@
         
         // Check for internal tester flag
         if (localStorage.getItem('anywave_internal_tester') === 'true') {
-            posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
-            posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
+            posthog.register({ is_internal: true });
+            posthog.setPersonProperties({ is_internal: true });
             console.log('🔧 Internal tester flag detected - marked as internal user');
         }
     </script>
@@ -156,8 +170,8 @@
         <div class="icon">
             <img src="icon1.png" alt="AnyWave Logo">
         </div>
-        <h1>Thank You!</h1>
-        <p class="subtitle">Your download should start automatically.<br>Your license key is on its way to your email.</p>
+        <h1>Free Trial</h1>
+        <p class="subtitle">Your download should start automatically.<br>Try all features with no time limit.</p>
         
         <div class="download-status">
             <div class="status-item">
@@ -166,10 +180,6 @@
                 </span>
                 <span id="download-text">Starting download...</span>
             </div>
-            <div class="status-item">
-                <span class="status-icon">📧</span>
-                <span>License key sent to your email</span>
-            </div>
         </div>
         
         <div class="next-steps">
@@ -177,56 +187,29 @@
             <ol>
                 <li>Open the downloaded DMG file</li>
                 <li>Drag AnyWave to Applications</li>
-                <li>Check your email for the license key</li>
-                <li>Enter the key when prompted</li>
+                <li>Launch and start creating!</li>
             </ol>
         </div>
         
         <p class="manual-download">
             Download not starting? <a href="#" id="manual-download-link">Click here to download manually</a>
         </p>
+        
+        <div class="trial-note">
+            Ready to export your creations? <a href="index.html#pricing">Upgrade to Pro</a> anytime from within the app.
+        </div>
     </div>
     
     <script>
         // Configuration - Public releases repo (latest release)
         const DOWNLOAD_URL = 'https://github.com/peachsounds-tech/anywave-releases/releases/latest/download/AnyWave.dmg';
         
-        // SHA-256 hash function
-        async function hashEmail(email) {
-            const normalized = email.toLowerCase().trim();
-            const encoder = new TextEncoder();
-            const data = encoder.encode(normalized);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-        
-        // Get email from URL params
-        function getEmailFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            // Lemon Squeezy passes email as checkout_email or email
-            return params.get('checkout_email') || params.get('email') || null;
-        }
-        
         // Track download event
-        async function trackDownload(email) {
-            if (!email) {
-                console.log('No email found, tracking anonymously');
-                posthog.capture('download_started', {
-                    source: 'post_checkout'
-                });
-                return;
-            }
-            
-            const hashedEmail = await hashEmail(email);
-            
-            // Just track the download - webhook already handled identity merging
-            posthog.capture('download_started', {
-                hashed_email: hashedEmail,
-                source: 'post_checkout'
+        function trackDownload() {
+            posthog.capture('trial_download_started', {
+                source: 'free_trial_page'
             });
-            
-            console.log('Download tracked for:', hashedEmail);
+            console.log('Trial download tracked');
         }
         
         // Start download
@@ -246,11 +229,9 @@
         }
         
         // Initialize
-        async function init() {
-            const email = getEmailFromURL();
-            
+        function init() {
             // Track the download
-            await trackDownload(email);
+            trackDownload();
             
             // Start download after a short delay
             setTimeout(startDownload, 500);
@@ -264,4 +245,3 @@
     </script>
 </body>
 </html>
-
