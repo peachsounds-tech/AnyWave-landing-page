@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Landmarq</title>
+    <title>Download Cue</title>
     <style>
         * {
             margin: 0;
@@ -144,7 +144,7 @@
         });
         
         // Check for internal tester flag
-        if (localStorage.getItem('landmarq_internal_tester') === 'true') {
+        if (localStorage.getItem('cue_internal_tester') === 'true') {
             posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
             posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
             console.log('🔧 Internal tester flag detected - marked as internal user');
@@ -154,7 +154,7 @@
 <body>
     <div class="container">
         <div class="icon">
-            <img src="icon1.png" alt="Landmarq Logo">
+            <img src="icon1.png" alt="Cue Logo">
         </div>
         <h1>Thank You!</h1>
         <p class="subtitle">Your download should start automatically.<br>Your license key is on its way to your email.</p>
@@ -176,7 +176,7 @@
             <h3>Next Steps</h3>
             <ol>
                 <li>Open the downloaded DMG file</li>
-                <li>Drag Landmarq to Applications</li>
+                <li>Drag Cue to Applications</li>
                 <li>Check your email for the license key</li>
                 <li>Enter the key when prompted</li>
             </ol>
@@ -189,7 +189,7 @@
     
     <script>
         // Configuration - Public releases repo (latest release)
-        const DOWNLOAD_URL = 'https://github.com/peachsounds-tech/landmarq-releases/releases/latest/download/Landmarq.dmg';
+        const DOWNLOAD_URL = 'https://github.com/peachsounds-tech/cue-releases/releases/latest/download/Cue.dmg';
         
         // SHA-256 hash function
         async function hashEmail(email) {

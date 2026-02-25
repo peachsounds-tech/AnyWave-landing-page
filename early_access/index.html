@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Landmarq – Early Access</title>
-    <meta name="description" content="Free early access to Landmarq. Adapt music to your video without cutting or looping tracks manually. Full license, no credit card required.">
+    <title>Cue – Early Access</title>
+    <meta name="description" content="Free early access to Cue. Adapt music to your video without cutting or looping tracks manually. Full license, no credit card required.">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +37,7 @@
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
-            const STORAGE_KEY = 'landmarq_analytics_consent';
+            const STORAGE_KEY = 'cue_analytics_consent';
             const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
             const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
             
@@ -272,7 +272,7 @@
         let preConsentAnonymousId = null;
         
         // Check if this is an internal tester (check once at startup)
-        const isInternalTester = localStorage.getItem('landmarq_internal_tester') === 'true';
+        const isInternalTester = localStorage.getItem('cue_internal_tester') === 'true';
         if (isInternalTester) {
             console.log('🔧 Internal tester mode detected');
         }
@@ -297,7 +297,7 @@
          */
         function hasExistingConsent() {
             try {
-                const data = localStorage.getItem('landmarq_analytics_consent');
+                const data = localStorage.getItem('cue_analytics_consent');
                 if (!data) return false;
                 const consent = JSON.parse(data);
                 if (consent.status !== 'accepted') return false;
@@ -715,8 +715,9 @@
             justify-content: flex-start;
             position: relative;
             margin-top: var(--nav-h);
-            padding: 12px 2rem 12px;
+            padding: 120px 24px 140px;
             overflow: visible;
+            background: linear-gradient(180deg, #0A0A12 0%, #11121A 100%);
         }
         
         .hero-bg {
@@ -732,23 +733,23 @@
             transform: translateX(-50%);
             width: 150%;
             height: 80%;
-            background: var(--gradient-glow);
+            background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.04) 0%, transparent 70%);
             filter: blur(80px);
-            opacity: 0.6;
+            opacity: 0.5;
         }
         
         .grid-pattern {
             position: absolute;
             inset: 0;
             background-image: 
-                linear-gradient(rgba(255, 107, 53, 0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 107, 53, 0.06) 1px, transparent 1px);
+                linear-gradient(rgba(255, 107, 53, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 107, 53, 0.025) 1px, transparent 1px);
             background-size: 60px 60px;
-            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 50%);
         }
         
         .hero-content {
-            max-width: 980px;
+            max-width: 1100px;
             width: 100%;
             text-align: center;
             position: relative;
@@ -771,12 +772,32 @@
             font-size: 0.8rem;
             font-weight: 600;
             color: var(--early-access-green);
-            margin-bottom: 16px;
+            margin-bottom: 24px;
             animation: fadeInUp 0.8s ease;
         }
         
         .early-access-badge::before {
             content: '🚀';
+        }
+        
+        /* Hero headline (H1) */
+        .hero-headline {
+            font-size: clamp(42px, 4.5vw, 64px);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            margin: 0 0 32px 0;
+            color: #FFFFFF;
+            max-width: 900px;
+            text-align: center;
+            animation: fadeInUp 0.8s ease 0.1s both;
+        }
+        
+        .hero-headline .gradient {
+            background: linear-gradient(135deg, #E8854A 0%, #D4783F 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         h1 {
@@ -785,7 +806,6 @@
             line-height: 1.04;
             margin: 0 0 14px 0;
             color: white;
-            animation: fadeInUp 0.8s ease 0.1s both;
         }
         
         h1 .gradient,
@@ -802,26 +822,43 @@
             color: var(--text-primary);
             margin: 0 0 8px 0;
             letter-spacing: -0.01em;
+        }
+        
+        /* Hero subtitle (mechanism layer) */
+        .hero-subtitle {
+            font-size: clamp(18px, 1.5vw, 22px);
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 700px;
+            width: 100%;
+            margin: 0 0 16px 0;
+            line-height: 1.5;
+            text-align: center;
             animation: fadeInUp 0.8s ease 0.25s both;
         }
         
-        .hero-subtitle {
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            max-width: 680px;
-            width: 100%;
-            margin: 0 0 6px 0;
-            line-height: 1.45;
-            animation: fadeInUp 0.8s ease 0.4s both;
+        .subtitle-break {
+            display: block;
+        }
+        
+        /* Hero micro statement (emotional anchor) */
+        .hero-micro {
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.5);
+            margin: 0 0 16px 0;
+            text-align: center;
+            animation: fadeInUp 0.8s ease 0.35s both;
         }
         
         .hero-ctas {
             display: flex;
-            gap: 0.9rem;
+            gap: 16px;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 2px;
-            animation: fadeInUp 0.8s ease 0.5s both;
+            margin-bottom: 8px;
+            animation: fadeInUp 0.8s ease 0.45s both;
         }
         
         .hero-note {
@@ -835,7 +872,7 @@
         .hero-reassurance {
             font-size: 0.8rem;
             font-weight: 400;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.45);
             margin: 0 0 12px 0;
             max-width: 650px;
             line-height: 1.5;
@@ -845,7 +882,7 @@
         
         .hero-orientation {
             font-size: 0.85rem;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.6);
             margin: 0 0 12px 0;
             max-width: 600px;
             animation: fadeInUp 0.8s ease 0.4s both;
@@ -853,7 +890,7 @@
         
         .hero-microcopy {
             font-size: 0.7rem;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.4);
             opacity: 0.7;
             margin-top: 8px;
             font-weight: 400;
@@ -863,7 +900,7 @@
         .how-it-works-link {
             display: inline-block;
             margin-top: 12px;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.4);
             text-decoration: none;
             font-size: 0.75rem;
             font-weight: 400;
@@ -874,7 +911,7 @@
         
         .how-it-works-link:hover {
             opacity: 1;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.6);
         }
         
         .btn {
@@ -882,11 +919,11 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            height: 44px;
-            padding: 0 22px;
-            border-radius: 10px;
+            height: 48px;
+            padding: 0 28px;
+            border-radius: 12px;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             text-decoration: none;
             transition: all 0.3s ease;
             cursor: pointer;
@@ -894,44 +931,41 @@
         }
         
         .btn-primary {
-            background: var(--gradient-early-access);
+            background: linear-gradient(135deg, #D4783F 0%, #4A7FB8 100%);
             color: white;
-            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.15);
         }
         
         .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 35px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(255, 107, 53, 0.25);
         }
         
         .btn-secondary {
             background: transparent;
-            color: var(--text-primary);
-            border: 2px solid var(--border-light);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .btn-secondary:hover {
-            background: var(--bg-secondary);
-            border-color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.35);
         }
         
         .hero-visual {
-            margin: 0 0 12px 0;
+            margin: 0;
             position: relative;
-            animation: fadeInUp 0.8s ease 0.3s both;
+            animation: fadeInUp 0.8s ease 0.55s both;
             width: 100%;
-            max-width: 800px;
-            max-height: 380px;
+            max-width: 1050px;
         }
         
         .app-screenshot {
             background: var(--bg-card);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
             padding: 0.25rem;
-            box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                0 0 0 1px rgba(255, 107, 53, 0.1);
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
             position: relative;
             overflow: hidden;
         }
@@ -1742,15 +1776,21 @@
             }
             
             .hero {
-                padding: 8px 1rem;
+                padding: 80px 20px 80px;
             }
             
-            .hero-tagline {
-                font-size: 1.5rem;
+            .hero-headline {
+                font-size: clamp(36px, 8vw, 42px);
+                margin-bottom: 24px;
             }
             
             .hero-subtitle {
-                font-size: 0.9rem;
+                font-size: clamp(16px, 3.8vw, 18px);
+            }
+            
+            .hero-micro {
+                font-size: 14px;
+                margin-bottom: 32px;
             }
             
             .hero-reassurance {
@@ -1759,8 +1799,20 @@
                 padding: 0 0.5rem;
             }
             
-            .hero-orientation {
-                font-size: 0.85rem;
+            .hero-visual {
+                max-width: 100%;
+            }
+            
+            .hero-ctas {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 40px;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 280px;
             }
             
             .creator-access-panel {
@@ -1891,8 +1943,8 @@
     <nav id="navbar">
         <div class="nav-container">
             <a href="#" class="logo">
-                <img src="../icon.png" alt="Landmarq">
-                <span class="logo-text">Landmarq</span>
+                <img src="../icon.png" alt="Cue">
+                <span class="logo-text">Cue</span>
             </a>
             <div class="nav-links">
                 <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button nav-cta" data-cta-location="nav">Get Early Access</a>
@@ -1911,12 +1963,22 @@
             <div class="grid-pattern"></div>
         </div>
         <div class="hero-content">
-            <p class="hero-tagline">Shift <span class="gradient">Time.</span> Shape <span class="gradient">Sound.</span></p>
+            <h1 class="hero-headline">Music shapes <span class="gradient">emotion.</span><br>Cue shapes the <span class="gradient">music.</span></h1>
             <p class="hero-subtitle">
-                Adapt music to your video <strong>without cutting or looping tracks manually</strong>.
+                Mark the moments that matter —<br class="subtitle-break">
+                the rest adapts seamlessly around them.
             </p>
-            <p class="hero-reassurance">Join the early access community and help shape Landmarq. Your feedback makes the product better for everyone.</p>
-            
+            <p class="hero-micro">So your edit doesn't just flow. It lands.</p>
+            <p class="hero-reassurance">Join the early access community and help shape Cue. Your feedback makes the product better for everyone.</p>
+            <div class="hero-ctas">
+                <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary" data-cta-location="hero">
+                    <span>Get Early Access</span>
+                </a>
+                <a href="#how-it-works" class="btn btn-secondary">
+                    <span>See It In Action</span>
+                </a>
+            </div>
+            <p class="hero-microcopy">⬇ macOS download · Full license · No credit card required</p>
             <div class="hero-visual">
                 <div class="app-screenshot">
                     <div class="waveform-demo">
@@ -1931,15 +1993,6 @@
                     </div>
                 </div>
             </div>
-            <p class="hero-orientation">Drag musical sections to match your edit. Landmarq fills the gaps seamlessly.</p>
-            <div class="hero-ctas">
-                <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary" data-cta-location="hero">
-                    <span>Get Early Access</span>
-                    <span>→</span>
-                </a>
-            </div>
-            <p class="hero-microcopy">⬇ macOS download · Full license · No credit card required</p>
-            <a href="#how-it-works" class="how-it-works-link">See how it works ↓</a>
         </div>
     </section>
 
@@ -1950,7 +2003,7 @@
                 <p class="section-label">How It Works</p>
                 <h2>Pin. Drag. Done.</h2>
                 <p class="section-subtitle">
-                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, Landmarq seamlessly reshapes everything in between.
+                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, Cue seamlessly reshapes everything in between.
                 </p>
             </div>
             
@@ -1997,7 +2050,7 @@
         <div class="creator-access-container">
             <div class="creator-access-panel">
                 <h2 class="creator-access-title">Early Access</h2>
-                <p class="creator-access-body">Join the early access community and try Landmarq for free. Your feedback helps shape the product for everyone.</p>
+                <p class="creator-access-body">Join the early access community and try Cue for free. Your feedback helps shape the product for everyone.</p>
                 <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary" data-cta-location="access_panel">
                     <span>Get Early Access</span>
                     <span>→</span>
@@ -2012,14 +2065,14 @@
     <footer>
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="../icon.png" alt="Landmarq">
-                <span>Landmarq</span>
+                <img src="../icon.png" alt="Cue">
+                <span>Cue</span>
             </div>
             <div class="footer-links">
                 <a href="/privacy.html">Privacy Policy</a>
             </div>
             <div class="footer-copyright">
-                <p>© 2026 Landmarq. All rights reserved.</p>
+                <p>© 2026 Cue. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -2177,14 +2230,14 @@
         function storeUTMs() {
             const utms = getUTMParams();
             if (utms.utm_source) {
-                localStorage.setItem('landmarq_utms', JSON.stringify(utms));
+                localStorage.setItem('cue_utms', JSON.stringify(utms));
             }
         }
         
         // Get stored UTMs
         function getStoredUTMs() {
             try {
-                return JSON.parse(localStorage.getItem('landmarq_utms')) || {};
+                return JSON.parse(localStorage.getItem('cue_utms')) || {};
             } catch {
                 return {};
             }
