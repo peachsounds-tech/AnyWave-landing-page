@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AnyWave – Fit Any Music to your Edit</title>
+    <title>Landmarq – Fit Any Music to your Edit</title>
     <meta name="description" content="Remap any moment in your audio to sync perfectly with your video. Stretch, compress, or realign music to hit your cues without losing the groove.">
     
     <!-- Fonts -->
@@ -35,7 +35,7 @@
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
-            const STORAGE_KEY = 'anywave_analytics_consent';
+            const STORAGE_KEY = 'landmarq_analytics_consent';
             const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
             const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
             
@@ -255,7 +255,7 @@
         let posthogInitialized = false;
         
         // Check if this is an internal tester (check once at startup)
-        const isInternalTester = localStorage.getItem('anywave_internal_tester') === 'true';
+        const isInternalTester = localStorage.getItem('landmarq_internal_tester') === 'true';
         if (isInternalTester) {
             console.log('🔧 Internal tester mode detected');
         }
@@ -295,7 +295,7 @@
             posthogInitialized = true;
             
             // Check for internal tester flag
-            if (localStorage.getItem('anywave_internal_tester') === 'true') {
+            if (localStorage.getItem('landmarq_internal_tester') === 'true') {
                 posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
                 posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
                 console.log('🔧 Internal tester flag detected - marked as internal user');
@@ -3217,12 +3217,12 @@
     <nav id="navbar">
         <div class="nav-container">
             <a href="#" class="logo">
-                <img src="icon.png" alt="AnyWave">
-                <span class="logo-text">AnyWave</span>
+                <img src="icon.png" alt="Landmarq">
+                <span class="logo-text">Landmarq</span>
             </a>
             <div class="nav-links">
                 <a href="#how-it-works">How It Works</a>
-                <a href="#pricing" class="nav-cta">Get AnyWave</a>
+                <a href="#pricing" class="nav-cta">Get Landmarq</a>
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
                     <span class="theme-icon light">☀️</span>
                     <span class="theme-icon dark">🌙</span>
@@ -3240,7 +3240,7 @@
         <div class="hero-content">
             <p class="hero-tagline">Shift <span class="gradient">Time.</span> Shape <span class="gradient">Sound.</span></p>
             <p class="hero-subtitle">
-                Move the beats and drops to match your edit. AnyWave cuts and loops the gaps seamlessly.
+                Move the beats and drops to match your edit. Landmarq cuts and loops the gaps seamlessly.
             </p>
             
             <div class="hero-visual">
@@ -3259,7 +3259,7 @@
             </div>
             <div class="hero-ctas">
                 <a href="#pricing" class="btn btn-primary">
-                    <span>Get AnyWave</span>
+                    <span>Get Landmarq</span>
                     <span>→</span>
                 </a>
                 <a href="#how-it-works" class="btn btn-secondary">
@@ -3289,7 +3289,7 @@
                 <p class="section-label">How It Works</p>
                 <h2>Pin. Drag. Done.</h2>
                 <p class="section-subtitle">
-                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story—AnyWave seamlessly reshapes everything in between.
+                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story—Landmarq seamlessly reshapes everything in between.
                 </p>
             </div>
             
@@ -3366,7 +3366,7 @@
                 <!-- Pro Plan (Featured) -->
                 <div class="pricing-card featured">
                     <div class="plan-badge">⭐ RECOMMENDED</div>
-                    <h3 class="plan-name">AnyWave Pro</h3>
+                    <h3 class="plan-name">Landmarq Pro</h3>
                     <div class="plan-price">
                         <span class="price">$3.99</span>
                         <span class="period">/month</span>
@@ -3392,14 +3392,14 @@
     <footer>
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="icon.png" alt="AnyWave">
-                <span>AnyWave</span>
+                <img src="icon.png" alt="Landmarq">
+                <span>Landmarq</span>
             </div>
             <div class="footer-links">
                 <a href="/privacy.html">Privacy Policy</a>
             </div>
             <div class="footer-copyright">
-                <p>© 2026 AnyWave. All rights reserved.</p>
+                <p>© 2026 Landmarq. All rights reserved.</p>
             </div>
         </div>
     </footer>

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AnyWave – Creator Access</title>
-    <meta name="description" content="Free creator access to AnyWave. Adapt music to your video without cutting or looping tracks manually. Full license, no credit card required.">
+    <title>Landmarq – Creator Access</title>
+    <meta name="description" content="Free creator access to Landmarq. Adapt music to your video without cutting or looping tracks manually. Full license, no credit card required.">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +37,7 @@
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
-            const STORAGE_KEY = 'anywave_analytics_consent';
+            const STORAGE_KEY = 'landmarq_analytics_consent';
             const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
             const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
             
@@ -272,7 +272,7 @@
         let preConsentAnonymousId = null;
         
         // Check if this is an internal tester (check once at startup)
-        const isInternalTester = localStorage.getItem('anywave_internal_tester') === 'true';
+        const isInternalTester = localStorage.getItem('landmarq_internal_tester') === 'true';
         if (isInternalTester) {
             console.log('🔧 Internal tester mode detected');
         }
@@ -297,7 +297,7 @@
          */
         function hasExistingConsent() {
             try {
-                const data = localStorage.getItem('anywave_analytics_consent');
+                const data = localStorage.getItem('landmarq_analytics_consent');
                 if (!data) return false;
                 const consent = JSON.parse(data);
                 if (consent.status !== 'accepted') return false;
@@ -1891,8 +1891,8 @@
     <nav id="navbar">
         <div class="nav-container">
             <a href="#" class="logo">
-                <img src="../icon.png" alt="AnyWave">
-                <span class="logo-text">AnyWave</span>
+                <img src="../icon.png" alt="Landmarq">
+                <span class="logo-text">Landmarq</span>
             </a>
             <div class="nav-links">
                 <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button nav-cta" data-cta-location="nav">Get Free Creator Access</a>
@@ -1915,7 +1915,7 @@
             <p class="hero-subtitle">
                 Adapt music to your video <strong>without cutting or looping tracks manually</strong>.
             </p>
-            <p class="hero-reassurance">You've been invited to free early access to AnyWave. Your feedback helps shape the product.</p>
+            <p class="hero-reassurance">You've been invited to free early access to Landmarq. Your feedback helps shape the product.</p>
             
             <div class="hero-visual">
                 <div class="app-screenshot">
@@ -1931,7 +1931,7 @@
                     </div>
                 </div>
             </div>
-            <p class="hero-orientation">Drag musical sections to match your edit. AnyWave fills the gaps seamlessly.</p>
+            <p class="hero-orientation">Drag musical sections to match your edit. Landmarq fills the gaps seamlessly.</p>
             <div class="hero-ctas">
                 <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary" data-cta-location="hero">
                     <span>Get Free Creator Access</span>
@@ -1950,7 +1950,7 @@
                 <p class="section-label">How It Works</p>
                 <h2>Pin. Drag. Done.</h2>
                 <p class="section-subtitle">
-                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, AnyWave seamlessly reshapes everything in between.
+                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, Landmarq seamlessly reshapes everything in between.
                 </p>
             </div>
             
@@ -1997,7 +1997,7 @@
         <div class="creator-access-container">
             <div class="creator-access-panel">
                 <h2 class="creator-access-title">Creator Access</h2>
-                <p class="creator-access-body">You've been invited to try AnyWave for free. Your feedback helps shape the product.</p>
+                <p class="creator-access-body">You've been invited to try Landmarq for free. Your feedback helps shape the product.</p>
                 <a href="https://peachsounds.lemonsqueezy.com/checkout/buy/8dfc09d0-cfd1-4a5c-83b0-55ebc6efcbfc?embed=1" class="lemonsqueezy-button btn btn-primary" data-cta-location="access_panel">
                     <span>Get Free Creator Access</span>
                     <span>→</span>
@@ -2012,14 +2012,14 @@
     <footer>
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="../icon.png" alt="AnyWave">
-                <span>AnyWave</span>
+                <img src="../icon.png" alt="Landmarq">
+                <span>Landmarq</span>
             </div>
             <div class="footer-links">
                 <a href="/privacy.html">Privacy Policy</a>
             </div>
             <div class="footer-copyright">
-                <p>© 2026 AnyWave. All rights reserved.</p>
+                <p>© 2026 Landmarq. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -2177,14 +2177,14 @@
         function storeUTMs() {
             const utms = getUTMParams();
             if (utms.utm_source) {
-                localStorage.setItem('anywave_utms', JSON.stringify(utms));
+                localStorage.setItem('landmarq_utms', JSON.stringify(utms));
             }
         }
         
         // Get stored UTMs
         function getStoredUTMs() {
             try {
-                return JSON.parse(localStorage.getItem('anywave_utms')) || {};
+                return JSON.parse(localStorage.getItem('landmarq_utms')) || {};
             } catch {
                 return {};
             }

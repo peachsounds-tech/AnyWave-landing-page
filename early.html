@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AnyWave – Free Early Access</title>
-    <meta name="description" content="Get free early access to AnyWave. Remap any moment in your audio to sync perfectly with your video. Help us shape the future of music editing.">
+    <title>Landmarq – Free Early Access</title>
+    <meta name="description" content="Get free early access to Landmarq. Remap any moment in your audio to sync perfectly with your video. Help us shape the future of music editing.">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,7 +48,7 @@
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
-            const STORAGE_KEY = 'anywave_analytics_consent';
+            const STORAGE_KEY = 'landmarq_analytics_consent';
             const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
             const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
             
@@ -268,7 +268,7 @@
         let posthogInitialized = false;
         
         // Check if this is an internal tester (check once at startup)
-        const isInternalTester = localStorage.getItem('anywave_internal_tester') === 'true';
+        const isInternalTester = localStorage.getItem('landmarq_internal_tester') === 'true';
         if (isInternalTester) {
             console.log('🔧 Internal tester mode detected');
         }
@@ -308,7 +308,7 @@
             posthogInitialized = true;
             
             // Check for internal tester flag
-            if (localStorage.getItem('anywave_internal_tester') === 'true') {
+            if (localStorage.getItem('landmarq_internal_tester') === 'true') {
                 posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
                 posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
                 console.log('🔧 Internal tester flag detected - marked as internal user');
@@ -1629,8 +1629,8 @@
     <nav id="navbar">
         <div class="nav-container">
             <a href="#" class="logo">
-                <img src="icon.png" alt="AnyWave">
-                <span class="logo-text">AnyWave</span>
+                <img src="icon.png" alt="Landmarq">
+                <span class="logo-text">Landmarq</span>
             </a>
             <div class="nav-links">
                 <a href="#how-it-works">How It Works</a>
@@ -1653,7 +1653,7 @@
             <div class="early-access-badge">Free Early Access</div>
             <p class="hero-tagline">Shift <span class="gradient">Time.</span> Shape <span class="gradient">Sound.</span></p>
             <p class="hero-subtitle">
-                Move the beats and drops to match your edit. AnyWave cuts and loops the gaps seamlessly. Get free access as an early tester.
+                Move the beats and drops to match your edit. Landmarq cuts and loops the gaps seamlessly. Get free access as an early tester.
             </p>
             
             <div class="hero-visual">
@@ -1699,7 +1699,7 @@
                 <p class="section-label">How It Works</p>
                 <h2>Pin. Drag. Done.</h2>
                 <p class="section-subtitle">
-                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, AnyWave seamlessly reshapes everything in between.
+                    Fit any soundtrack to your edit perfectly. Move the emotional peaks to follow your story, Landmarq seamlessly reshapes everything in between.
                 </p>
             </div>
             
@@ -1781,14 +1781,14 @@
     <footer>
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="icon.png" alt="AnyWave">
-                <span>AnyWave</span>
+                <img src="icon.png" alt="Landmarq">
+                <span>Landmarq</span>
             </div>
             <div class="footer-links">
                 <a href="/privacy.html">Privacy Policy</a>
             </div>
             <div class="footer-copyright">
-                <p>© 2026 AnyWave. All rights reserved.</p>
+                <p>© 2026 Landmarq. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -1931,14 +1931,14 @@
         function storeUTMs() {
             const utms = getUTMParams();
             if (utms.utm_source) {
-                localStorage.setItem('anywave_utms', JSON.stringify(utms));
+                localStorage.setItem('landmarq_utms', JSON.stringify(utms));
             }
         }
         
         // Get stored UTMs
         function getStoredUTMs() {
             try {
-                return JSON.parse(localStorage.getItem('anywave_utms')) || {};
+                return JSON.parse(localStorage.getItem('landmarq_utms')) || {};
             } catch {
                 return {};
             }
