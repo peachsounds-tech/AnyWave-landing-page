@@ -133,22 +133,82 @@
         }
     </style>
     
-    <!-- PostHog -->
+    <!-- PostHog - Consent-aware initialization -->
     <script>
-        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-        posthog.init('phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG', {
-            api_host: 'https://us.i.posthog.com',
-            persistence: 'localStorage',
-            autocapture: false,
-            capture_pageview: false
-        });
+        // Load PostHog snippet
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
         
-        // Check for internal tester flag
-        if (localStorage.getItem('cue_internal_tester') === 'true') {
-            posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
-            posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
-            console.log('🔧 Internal tester flag detected - marked as internal user');
+        // Check if user consented on main page (shared consent key)
+        function hasExistingConsent() {
+            try {
+                const data = localStorage.getItem('cue_analytics_consent');
+                if (!data) return false;
+                const consent = JSON.parse(data);
+                if (consent.status !== 'accepted') return false;
+                const daysElapsed = (Date.now() - consent.timestamp) / (1000 * 60 * 60 * 24);
+                return daysElapsed <= 180;
+            } catch (e) {
+                return false;
+            }
         }
+        
+        const userConsented = hasExistingConsent();
+        const isInternalTester = localStorage.getItem('cue_internal_tester') === 'true';
+        
+        // Initialize with appropriate persistence based on consent
+        const initConfig = {
+            api_host: 'https://us.i.posthog.com',
+            persistence: userConsented ? 'localStorage' : 'memory',
+            autocapture: false,
+            capture_pageview: false,
+            person_profiles: userConsented ? 'always' : 'identified_only',
+            ip: userConsented  // Don't capture IP for anonymous tracking
+        };
+        
+        // Disable geo lookup for non-consented users
+        if (!userConsented) {
+            initConfig.disable_geoip = true;
+        }
+        
+        posthog.init('phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG', initConfig);
+        
+        // Register internal tester flag
+        if (isInternalTester) {
+            posthog.register({ is_internal: true });
+            if (userConsented) {
+                posthog.setPersonProperties({ is_internal: true });
+            }
+            console.log('🔧 Internal tester flag detected');
+        }
+        
+        // Helper for base props
+        function getBaseEventProps() {
+            const props = {};
+            if (isInternalTester) props.is_internal = true;
+            return props;
+        }
+        
+        // Track page view
+        setTimeout(() => {
+            if (userConsented) {
+                posthog.capture('page_viewed', {
+                    ...getBaseEventProps(),
+                    page: 'download',
+                    url: window.location.href,
+                    referrer: document.referrer || 'direct'
+                });
+                console.log('📊 PostHog: page_viewed tracked (consented)');
+            } else {
+                posthog.capture('page_viewed', {
+                    page: 'download',
+                    url: window.location.href,
+                    referrer: document.referrer || 'direct',
+                    screen_width: window.screen.width,
+                    screen_height: window.screen.height
+                });
+                console.log('📊 PostHog: page_viewed tracked (anonymous, no geo)');
+            }
+        }, 200);
     </script>
 </head>
 <body>
@@ -210,23 +270,28 @@
         
         // Track download event
         async function trackDownload(email) {
-            if (!email) {
-                console.log('No email found, tracking anonymously');
-                posthog.capture('download_started', {
+            if (userConsented) {
+                const eventProps = {
+                    ...getBaseEventProps(),
+                    page: 'download',
                     source: 'post_checkout'
+                };
+                
+                // Include hashed_email for consented users
+                if (email) {
+                    const hashedEmail = await hashEmail(email);
+                    eventProps.hashed_email = hashedEmail;
+                    console.log('Download tracked with identity:', hashedEmail);
+                }
+                
+                posthog.capture('download_started', eventProps);
+            } else {
+                posthog.capture('download_started', {
+                    page: 'download',
+                    url: window.location.href
                 });
-                return;
+                console.log('Download tracked (anonymous, no geo)');
             }
-            
-            const hashedEmail = await hashEmail(email);
-            
-            // Just track the download - webhook already handled identity merging
-            posthog.capture('download_started', {
-                hashed_email: hashedEmail,
-                source: 'post_checkout'
-            });
-            
-            console.log('Download tracked for:', hashedEmail);
         }
         
         // Start download

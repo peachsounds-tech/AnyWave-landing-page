@@ -48,7 +48,7 @@
          * - Stores preference in localStorage
          */
         const CookieConsent = (function() {
-            const STORAGE_KEY = 'landmarq_analytics_consent';
+            const STORAGE_KEY = 'cue_analytics_consent';
             const CONSENT_DURATION_DAYS = 180;  // How long accept/reject lasts
             const DISMISS_DURATION_DAYS = 7;    // How long dismiss hides banner
             
@@ -143,6 +143,10 @@
             function reject() {
                 storeConsent(CONSENT_REJECTED);
                 hideBanner();
+                // Track rejection (still in memory mode, no cookies)
+                if (typeof trackConsentDecision === 'function') {
+                    trackConsentDecision('rejected');
+                }
             }
             
             /**
@@ -153,6 +157,10 @@
             function dismiss() {
                 storeConsent(CONSENT_DISMISSED);
                 hideBanner();
+                // Track dismissal (still in memory mode, no cookies)
+                if (typeof trackConsentDecision === 'function') {
+                    trackConsentDecision('dismissed');
+                }
             }
             
             /**
@@ -255,20 +263,22 @@
     </script>
     
     <!-- ============================================
-         POSTHOG ANALYTICS (Consent-Gated)
-         PostHog is ONLY initialized after user accepts cookies.
-         This complies with GDPR/ePrivacy requirements.
+         POSTHOG ANALYTICS
+         Two-phase initialization:
+         1. Pre-consent: memory-only mode to track page_viewed and consent decisions (no IP)
+         2. Post-consent: localStorage mode for full user journey tracking
          ============================================ -->
     <script>
         // PostHog configuration
         const POSTHOG_API_KEY = 'phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG';
         const POSTHOG_API_HOST = 'https://us.i.posthog.com';
         
-        // Track if PostHog has been initialized this session
-        let posthogInitialized = false;
+        // Track initialization states
+        let posthogPreConsentInitialized = false;
+        let posthogFullyInitialized = false;
         
         // Check if this is an internal tester (check once at startup)
-        const isInternalTester = localStorage.getItem('landmarq_internal_tester') === 'true';
+        const isInternalTester = localStorage.getItem('cue_internal_tester') === 'true';
         if (isInternalTester) {
             console.log('🔧 Internal tester mode detected');
         }
@@ -285,67 +295,136 @@
             return props;
         }
         
+        // Load PostHog snippet (runs immediately)
+        !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+        
         /**
-         * Initialize PostHog analytics
-         * @param {boolean} justGrantedConsent - True if user just clicked Accept
+         * Check if user has already consented (used to skip pre-consent mode)
          */
-        function initPostHog(justGrantedConsent = false) {
-            if (posthogInitialized) return;
+        function hasExistingConsent() {
+            try {
+                const data = localStorage.getItem('cue_analytics_consent');
+                if (!data) return false;
+                const consent = JSON.parse(data);
+                if (consent.status !== 'accepted') return false;
+                // Check if consent has expired (180 days)
+                const daysElapsed = (Date.now() - consent.timestamp) / (1000 * 60 * 60 * 24);
+                return daysElapsed <= 180;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        /**
+         * Initialize PostHog in pre-consent mode (memory only, no cookies)
+         */
+        function initPostHogPreConsent() {
+            if (posthogPreConsentInitialized) return;
             
-            console.log('🍪 Consent granted - initializing PostHog...');
-            
-            // Load PostHog snippet
-            !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-            
-            // Initialize PostHog
-            posthog.init(POSTHOG_API_KEY, {
-                api_host: POSTHOG_API_HOST,
-                persistence: 'localStorage',
-                autocapture: false,
-                capture_pageview: false
-            });
-            
-            posthogInitialized = true;
-            
-            // Check for internal tester flag
-            if (localStorage.getItem('landmarq_internal_tester') === 'true') {
-                posthog.register({ is_internal: true });  // Adds to ALL events including automatic ones
-                posthog.setPersonProperties({ is_internal: true });  // Also set on person profile
-                console.log('🔧 Internal tester flag detected - marked as internal user');
+            // Skip pre-consent mode for returning users who already consented
+            if (hasExistingConsent()) {
+                console.log('📊 User already consented, skipping pre-consent mode');
+                return;
             }
             
-            // If user just granted consent, track that event first
+            console.log('📊 Initializing PostHog in pre-consent (memory-only) mode...');
+            
+            posthog.init(POSTHOG_API_KEY, {
+                api_host: POSTHOG_API_HOST,
+                persistence: 'memory',
+                autocapture: false,
+                capture_pageview: false,
+                person_profiles: 'identified_only',
+                ip: false,  // Don't capture IP for anonymous tracking
+                disable_geoip: true  // Disable server-side geo lookup
+            });
+            
+            posthogPreConsentInitialized = true;
+            
+            if (isInternalTester) {
+                posthog.register({ is_internal: true });
+                console.log('🔧 Internal tester flag registered (pre-consent)');
+            }
+            
+            // Wait for PostHog to be ready, then track page view
+            setTimeout(() => {
+                initTracking();
+            }, 300);
+        }
+        
+        /**
+         * Track consent decision (works in memory mode)
+         */
+        function trackConsentDecision(decision) {
+            if (typeof posthog !== 'undefined' && posthog.capture) {
+                posthog.capture('consent_' + decision, {
+                    page: 'early',
+                    url: window.location.href
+                });
+                console.log('📊 PostHog: consent_' + decision + ' tracked');
+            }
+        }
+        
+        /**
+         * Initialize/upgrade PostHog to full tracking mode after consent
+         */
+        function initPostHog(justGrantedConsent = false) {
+            if (posthogFullyInitialized) return;
+            
+            console.log('🍪 Initializing PostHog in full tracking mode...');
+            
+            if (posthogPreConsentInitialized) {
+                console.log('📊 Upgrading from pre-consent mode...');
+                posthog.set_config({ 
+                    persistence: 'localStorage',
+                    person_profiles: 'always'
+                });
+                posthog.createPersonProfile();
+                console.log('📊 Person profile created for ID:', posthog.get_distinct_id());
+                
+                if (isInternalTester) {
+                    posthog.register({ is_internal: true });
+                    console.log('🔧 Internal tester flag re-registered after upgrade');
+                }
+            } else {
+                console.log('📊 Returning user - initializing with localStorage...');
+                posthog.init(POSTHOG_API_KEY, {
+                    api_host: POSTHOG_API_HOST,
+                    persistence: 'localStorage',
+                    autocapture: false,
+                    capture_pageview: false,
+                    person_profiles: 'always'
+                });
+                
+                if (isInternalTester) {
+                    posthog.register({ is_internal: true });
+                    console.log('🔧 Internal tester flag registered (returning user)');
+                }
+            }
+            
+            posthogFullyInitialized = true;
+            
+            if (isInternalTester) {
+                posthog.setPersonProperties({ is_internal: true });
+                console.log('🔧 Internal tester person properties set');
+            }
+            
             if (justGrantedConsent) {
-                // Wait for PostHog to be ready, then track consent and page view
                 setTimeout(() => {
-                    // Track page_loaded first (this page doesn't have pre-consent tracking)
-                    posthog.capture('page_loaded', {
-                        ...getBaseEventProps(),
-                        page: 'early_access',
-                        url: window.location.href,
-                        referrer: document.referrer || 'direct'
-                    });
-                    console.log('📊 PostHog: page_loaded tracked');
-                    
                     posthog.capture('consent_granted', { ...getBaseEventProps(), source: 'cookie_banner' });
                     console.log('PostHog: consent_granted tracked');
                     initTracking();
                 }, 300);
             } else {
-                // Returning user who already consented - track page_loaded
+                // Returning user who already consented - track page view
                 setTimeout(() => {
-                    posthog.capture('page_loaded', {
-                        ...getBaseEventProps(),
-                        page: 'early_access',
-                        url: window.location.href,
-                        referrer: document.referrer || 'direct',
-                        returning_user: true
-                    });
-                    console.log('📊 PostHog: page_loaded tracked (returning user)');
                     initTracking();
                 }, 200);
             }
         }
+        
+        // Initialize pre-consent tracking immediately
+        initPostHogPreConsent();
     </script>
     
     <style>
@@ -1931,26 +2010,33 @@
         function storeUTMs() {
             const utms = getUTMParams();
             if (utms.utm_source) {
-                localStorage.setItem('landmarq_utms', JSON.stringify(utms));
+                localStorage.setItem('cue_utms', JSON.stringify(utms));
             }
         }
         
         // Get stored UTMs
         function getStoredUTMs() {
             try {
-                return JSON.parse(localStorage.getItem('landmarq_utms')) || {};
+                return JSON.parse(localStorage.getItem('cue_utms')) || {};
             } catch {
                 return {};
             }
         }
         
-        // Track page view with attribution
+        // Track page view with attribution (fires in both pre-consent and post-consent modes)
         function trackLandingPageView() {
-            const utms = getStoredUTMs();
+            if (typeof posthog === 'undefined' || !posthog.capture) {
+                console.log('PostHog: Skipping trackLandingPageView (not available)');
+                return;
+            }
+            
+            // Get UTMs from URL
+            const utms = getUTMParams();
             
             console.log('=== UTM Debug ===');
-            console.log('Stored UTMs:', utms);
+            console.log('URL UTMs:', utms);
             console.log('PostHog distinct_id:', getPostHogDistinctId());
+            console.log('Fully initialized:', posthogFullyInitialized);
             
             // Build event properties
             const eventProps = {
@@ -1964,45 +2050,58 @@
             if (utms.utm_medium) eventProps.utm_medium = utms.utm_medium;
             if (utms.utm_campaign) eventProps.utm_campaign = utms.utm_campaign;
             
-            // Build person properties (set via $set_once - first-touch attribution)
-            const personProps = {
-                first_seen_page: 'early_access',
-                first_seen_url: window.location.href,
-                user_type: 'early_access'
-            };
-            
-            if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
-            if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
-            if (utms.utm_campaign) personProps.first_utm_campaign = utms.utm_campaign;
-            
-            console.log('Event properties:', eventProps);
-            console.log('Person properties ($set_once):', personProps);
-            
-            // Track page view with person properties (no identify - use PostHog's auto ID)
-            posthog.capture('page_viewed', {
-                ...getBaseEventProps(),
-                ...eventProps,
-                $set_once: personProps
-            });
-            
-            console.log('PostHog: page_viewed (early_access) tracked!');
+            // Only include person properties if user has consented (full mode)
+            if (posthogFullyInitialized) {
+                const personProps = {
+                    first_seen_page: 'early_access',
+                    first_seen_url: window.location.href,
+                    user_type: 'early_access'
+                };
+                
+                if (utms.utm_source) personProps.first_utm_source = utms.utm_source;
+                if (utms.utm_medium) personProps.first_utm_medium = utms.utm_medium;
+                if (utms.utm_campaign) personProps.first_utm_campaign = utms.utm_campaign;
+                
+                console.log('Event properties:', eventProps);
+                console.log('Person properties ($set_once):', personProps);
+                
+                posthog.capture('page_viewed', {
+                    ...getBaseEventProps(),
+                    ...eventProps,
+                    $set_once: personProps
+                });
+                console.log('PostHog: page_viewed (early_access) tracked with person props!');
+            } else {
+                // Pre-consent mode: track event with URL/screen but no person properties
+                posthog.capture('page_viewed', {
+                    page: 'early',
+                    url: window.location.href,
+                    referrer: document.referrer || 'direct',
+                    screen_width: window.screen.width,
+                    screen_height: window.screen.height
+                });
+                console.log('PostHog: page_viewed (early) tracked (anonymous, no geo)');
+            }
         }
         
-        // Initialize tracking on page load (only called after consent)
+        // Initialize tracking on page load (fires in both pre-consent and post-consent modes)
         function initTracking() {
             console.log('=== PostHog Debug ===');
-            console.log('PostHog initialized:', posthogInitialized);
+            console.log('PostHog pre-consent initialized:', posthogPreConsentInitialized);
+            console.log('PostHog fully initialized:', posthogFullyInitialized);
             console.log('PostHog defined:', typeof posthog !== 'undefined');
             console.log('Window location:', window.location.href);
             
-            // Guard: Only track if consent was given
-            if (!posthogInitialized) {
-                console.log('PostHog: Skipping initTracking (not initialized)');
+            // Guard: PostHog must be in some mode (pre-consent or full)
+            if (!posthogPreConsentInitialized && !posthogFullyInitialized) {
+                console.log('PostHog: Skipping initTracking (not initialized in any mode)');
                 return;
             }
             
-            // Store UTMs now that we have consent
-            storeUTMs();
+            // Store UTMs only if user has consented
+            if (posthogFullyInitialized) {
+                storeUTMs();
+            }
             
             if (typeof posthog !== 'undefined' && posthog.capture) {
                 console.log('Calling trackLandingPageView...');
