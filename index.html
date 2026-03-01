@@ -3625,9 +3625,9 @@
         <div class="windows-banner__content">
             <svg class="windows-banner__icon" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 5.5L10.5 4.5V11.5H3V5.5Z"/><path d="M11.5 4.35L21 3V11.5H11.5V4.35Z"/><path d="M3 12.5H10.5V19.5L3 18.5V12.5Z"/><path d="M11.5 12.5H21V21L11.5 19.65V12.5Z"/></svg>
             <span class="windows-banner__text">
-                <strong>Cue for Windows</strong> is in development.
+                <strong>Cue for Windows</strong> is now available!
             </span>
-            <a href="#pricing" class="windows-banner__cta" onclick="switchPlatformTab('windows'); setTimeout(() => document.getElementById('waitlistEmail').focus(), 400);">Get notified →</a>
+            <a href="#pricing" class="windows-banner__cta" onclick="switchPlatformTab('windows');">Download now →</a>
         </div>
         <button class="windows-banner__close" id="windowsBannerClose" aria-label="Dismiss banner">✕</button>
     </div>
@@ -3780,22 +3780,12 @@
                             <p class="plan-note">macOS 11+ • Intel & Apple Silicon • 25MB</p>
                         </div>
                         
-                        <!-- Windows Waitlist -->
+                        <!-- Windows Download -->
                         <div class="platform-panel windows-panel" id="windowsPanel">
-                            <p class="windows-panel-label"><strong>Windows version is in the works.</strong><br>Leave your email — we'll notify you at launch.</p>
-                            <form class="waitlist-form" id="windowsWaitlistForm">
-                                <input 
-                                    type="email" 
-                                    id="waitlistEmail" 
-                                    placeholder="your@email.com" 
-                                    required 
-                                    autocomplete="email"
-                                >
-                                <button type="submit" class="btn btn-primary">Notify Me</button>
-                            </form>
-                            <p class="waitlist-success" id="waitlistSuccess">
-                                ✓ You're on the list! We'll email you when the Windows version is ready.
-                            </p>
+                            <a href="download-trial-windows.html" class="btn btn-secondary btn-large" onclick="trackTrialDownloadClick(event, 'windows')">
+                                Download Free Trial
+                            </a>
+                            <p class="plan-note">Windows 10+ • 64-bit • 25MB</p>
                         </div>
                     </div>
                 </div>
@@ -4105,7 +4095,8 @@
         
         // Track trial download click (fires before navigation to download page)
         // This ensures the event uses the same anonymous ID as page_viewed
-        function trackTrialDownloadClick(event) {
+        function trackTrialDownloadClick(event, platform) {
+            platform = platform || 'mac';
             // Guard: PostHog must be available
             if (typeof posthog === 'undefined' || !posthog.capture) {
                 console.log('PostHog: Skipping trial_download_clicked (not available)');
@@ -4119,12 +4110,14 @@
                 posthog.capture('trial_download_clicked', {
                     ...getBaseEventProps(),
                     page: 'landing',
-                    source: 'pricing_section'
+                    source: 'pricing_section',
+                    platform: platform
                 });
             } else {
                 posthog.capture('trial_download_clicked', {
                     page: 'landing',
-                    url: window.location.href
+                    url: window.location.href,
+                    platform: platform
                 });
             }
             console.log('📊 PostHog: trial_download_clicked tracked');
@@ -4482,86 +4475,7 @@
             });
         }
         
-        // ============================================
-        // WINDOWS WAITLIST FORM
-        // Google Sheets API + PostHog tracking
-        // ============================================
-        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycby1A_off6gj_swVIj_nnip_WDduBE2Tfq5DxCkfN3xpj5TXuP_LGz0k-tPD3l81cTzdfQ/exec';
-        
-        const waitlistForm = document.getElementById('windowsWaitlistForm');
-        const waitlistEmailInput = document.getElementById('waitlistEmail');
-        const waitlistSuccess = document.getElementById('waitlistSuccess');
-        
-        if (waitlistForm) {
-            waitlistForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const email = waitlistEmailInput.value.trim().toLowerCase();
-                
-                if (!email || !email.includes('@')) {
-                    return;
-                }
-                
-                // Disable form while submitting
-                const submitBtn = waitlistForm.querySelector('button[type="submit"]');
-                const originalBtnText = submitBtn.textContent;
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Sending...';
-                
-                try {
-                    // 1. Save to Google Sheet
-                    await fetch(GOOGLE_SHEET_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: email,
-                            source: 'windows_waitlist'
-                        })
-                    });
-                    console.log('✅ Email saved to Google Sheet');
-                    
-                    // 2. Local backup in localStorage
-                    const waitlist = JSON.parse(localStorage.getItem('cue_windows_waitlist') || '[]');
-                    if (!waitlist.includes(email)) {
-                        waitlist.push(email);
-                        localStorage.setItem('cue_windows_waitlist', JSON.stringify(waitlist));
-                    }
-                    
-                    // 3. Track with PostHog if available
-                    if (typeof posthog !== 'undefined' && posthog.capture) {
-                        const hashedEmail = await hashEmail(email);
-                        posthog.capture('windows_waitlist_signup', {
-                            ...getBaseEventProps(),
-                            email_hash: hashedEmail,
-                            platform: 'windows',
-                            source: 'pricing_card'
-                        });
-                        
-                        posthog.identify(hashedEmail, {
-                            windows_waitlist: true,
-                            waitlist_signup_date: new Date().toISOString()
-                        });
-                    }
-                    
-                    // Show success message
-                    waitlistForm.style.display = 'none';
-                    waitlistSuccess.classList.add('show');
-                    
-                    console.log('Windows waitlist signup:', email);
-                    
-                } catch (err) {
-                    console.error('Waitlist signup error:', err);
-                    // Still show success to user even if tracking failed
-                    // (no-cors mode can't read response, so errors here are often false negatives)
-                    waitlistForm.style.display = 'none';
-                    waitlistSuccess.classList.add('show');
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalBtnText;
-                }
-            });
-        }
+        // (Windows waitlist form removed — Windows download is now live)
     </script>
 </body>
 </html>
