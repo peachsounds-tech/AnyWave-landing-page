@@ -34,13 +34,22 @@ const server = http.createServer((req, res) => {
   let filePath = req.url.split('?')[0];
   filePath = decodeURIComponent(filePath);
 
-  // Default to index.html
+  // Default to index.html for root
   if (filePath === '/') {
     filePath = '/index.html';
   }
 
   // Resolve full file path
-  const fullPath = path.join(ROOT_DIR, filePath);
+  let fullPath = path.join(ROOT_DIR, filePath);
+
+  // If path is a directory, serve its index.html
+  try {
+    if (fs.statSync(fullPath).isDirectory()) {
+      fullPath = path.join(fullPath, 'index.html');
+    }
+  } catch (e) {
+    // Not found yet — let the fs.access check handle it
+  }
 
   // Security: prevent directory traversal
   if (!fullPath.startsWith(ROOT_DIR)) {
