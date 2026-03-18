@@ -1751,7 +1751,17 @@
         
         /* Primary card (Free) - the dominant action */
         .pricing-card--primary {
-            padding: 2rem;
+            padding: 3.5rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.25rem;
+            min-height: 380px;
+        }
+
+        .pricing-card--primary > * {
+            margin: 0;
         }
         
         .pricing-card--primary:hover {
@@ -2603,6 +2613,143 @@
             width: 20px;
             height: 20px;
             flex-shrink: 0;
+        }
+
+        /* ============================================
+           GET CUE CTA SECTION
+        ============================================ */
+        .cta-section {
+            padding: 4rem 2rem 3rem;
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta-container {
+            max-width: 480px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .cta-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .cta-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .cta-message {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2.25rem;
+            line-height: 1.5;
+            opacity: 0.85;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            height: 62px;
+            padding: 0 52px;
+            border-radius: 14px;
+            background: var(--gradient-early-access);
+            color: white;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(16, 185, 129, 0.18);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25);
+        }
+
+        .cta-trust {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-top: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .cta-secondary {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.6rem;
+            opacity: 0.35;
+        }
+
+        @media (max-width: 768px) {
+            .cta-section {
+                padding: 3rem 1.5rem 2.5rem;
+            }
+
+            .cta-title {
+                font-size: 1.75rem;
+            }
+
+            .cta-message {
+                font-size: 1.1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .cta-button {
+                font-size: 1.1rem;
+                height: 56px;
+                padding: 0 40px;
+                width: 100%;
+                max-width: 340px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cta-section {
+                padding: 2.5rem 1rem 2rem;
+            }
+
+            .cta-title {
+                font-size: 1.5rem;
+            }
+
+            .cta-message {
+                font-size: 1rem;
+            }
+
+            .cta-button {
+                font-size: 1rem;
+                height: 52px;
+                padding: 0 32px;
+            }
         }
 
         /* ============================================
@@ -3912,7 +4059,7 @@
         <div class="hero-content">
             <p class="hero-tagline">Stop cutting <span class="blue">music.</span><br>Start moving <span class="orange">moments.</span></p>
             <p class="hero-subtitle">
-                Move the musical moments you care about — the rest of the soundtrack rebuilds around them.
+                Move the musical moments you care about - the rest of the soundtrack rebuilds around them.
             </p>
             
             <div class="hero-visual">
@@ -3991,28 +4138,17 @@
         </div>
     </section>
 
-    <!-- Pricing Section -->
-    <section class="pricing-section" id="pricing">
-        <div class="pricing-container">
-            <div class="section-header">
-                <h2>Get Cue</h2>
-            </div>
-            <div class="pricing-cards">
-                <div class="pricing-card pricing-card--primary">
-                    <div class="plan-badge">Free Pre-Launch</div>
-                    <h3 class="plan-name">Cue</h3>
-                    <div class="plan-price">
-                        <span class="price-original">$79</span>
-                        <span class="price">$0</span>
-                    </div>
-                    <p class="plan-description"> Free early access.</p>
-                    <a href="download.html" class="btn btn-primary btn-download-hero" id="pricingDownloadBtn" onclick="trackTrialDownloadClick(event)">
-                        Download Cue
-                    </a>
-                    <p class="plan-note plan-note--trust">Join the first editors to cue their music.</p>
-                    <p class="plan-note plan-note--platforms">No credit card required · macOS &amp; Windows</p>
-                </div>
-            </div>
+    <!-- Get Cue Section -->
+    <section class="cta-section" id="pricing">
+        <div class="cta-container">
+            <h2 class="cta-title">Get Cue</h2>
+            <span class="cta-label">Free · Early Access</span>
+            <p class="cta-message">Stop cutting music.<br>Move moments.</p>
+            <a href="download.html" class="cta-button" id="pricingDownloadBtn" onclick="trackTrialDownloadClick(event)">
+                Download for macOS
+            </a>
+            <p class="cta-trust">Try it on your next edit.</p>
+            <p class="cta-secondary">Be among the first editors using Cue.</p>
         </div>
     </section>
 
