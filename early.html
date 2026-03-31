@@ -4720,13 +4720,7 @@
         // Download page auto-detects OS, so we always link to download.html
         function trackTrialDownloadClick(event) {
             if (typeof fbq === 'function') {
-                fbq('track', 'Download', {
-                    content_name: 'Cue Download',
-                    content_category: 'Software Download',
-                    content_type: 'product',
-                    value: 0.00,
-                    currency: 'USD'
-                });
+                fbq('trackCustom', 'InstallIntent');
             }
 
             // Auto-detect platform for tracking purposes
