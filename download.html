@@ -286,21 +286,6 @@
             opacity: 1;
         }
 
-        .quest-progress {
-            margin-top: 1.25rem;
-            height: 4px;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .quest-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--peach-orange), var(--wave-blue));
-            border-radius: 2px;
-            width: 0%;
-            transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
 
         .spinner {
             width: 14px;
@@ -559,24 +544,15 @@
                         <div class="quest-checkbox">
                             <svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <span class="quest-label" id="quest-open-label">Open Cue</span>
+                        <span class="quest-label" id="quest-open-label">Run Cue.pkg</span>
                     </li>
-                    <li class="quest-item upcoming" id="quest-drop">
+                    <li class="quest-item upcoming" id="quest-shape">
                         <div class="quest-checkbox">
                             <svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <span class="quest-label">Drop your track</span>
-                    </li>
-                    <li class="quest-item upcoming" id="quest-hear">
-                        <div class="quest-checkbox">
-                            <svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-                        <span class="quest-label">Hear it land perfectly</span>
+                        <span class="quest-label">Shape your music</span>
                     </li>
                 </ul>
-                <div class="quest-progress">
-                    <div class="quest-progress-bar" id="questProgressBar"></div>
-                </div>
             </div>
 
             <p class="manual-download">
@@ -625,12 +601,12 @@
             macos: {
                 icon: '🍎',
                 name: 'macOS',
-                openLabel: 'Run the installer & follow the steps'
+                openLabel: 'Run Cue.pkg'
             },
             windows: {
                 icon: '🪟',
                 name: 'Windows',
-                openLabel: 'Run Cue.exe to launch'
+                openLabel: 'Run Cue.exe'
             }
         };
 
@@ -646,9 +622,6 @@
                 nextSibling.classList.add('active');
             }
 
-            const total = document.querySelectorAll('.quest-item').length;
-            const done = document.querySelectorAll('.quest-item.completed').length;
-            document.getElementById('questProgressBar').style.width = (done / total * 100) + '%';
         }
         
         // Track download event
