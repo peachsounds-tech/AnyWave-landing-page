@@ -4142,7 +4142,7 @@
                             <li>Unlimited exports</li>
                             <li>macOS & Windows</li>
                         </ul>
-                        <a href="https://cue-app.lemonsqueezy.com/checkout/buy/5585ea8e-18e3-4608-ab13-fb9bac5f36c4" class="btn btn-primary btn-large" target="_blank">
+                        <a href="https://cue-app.lemonsqueezy.com/checkout/buy/5585ea8e-18e3-4608-ab13-fb9bac5f36c4" class="btn btn-primary btn-large" target="_blank" onclick="trackInitiateCheckout()">
                             Get Cue Pro
                         </a>
                         <p class="plan-note">Cancel anytime</p>
@@ -4813,6 +4813,23 @@
             const mobileCopyToast = document.getElementById('mobileCopyToast');
             const mobileWhatsApp = document.getElementById('mobileWhatsApp');
             const mobileEmailBtn = document.getElementById('mobileEmail');
+
+            function trackInitiateCheckout() {
+                if (typeof fbq === 'function') {
+                    fbq('track', 'InitiateCheckout', {
+                        content_name: 'Cue Pro',
+                        value: 9.00,
+                        currency: 'USD'
+                    });
+                }
+                if (typeof posthog !== 'undefined' && posthog.capture) {
+                    posthog.capture('initiate_checkout', {
+                        ...getBaseEventProps(),
+                        plan: 'cue_pro',
+                        source: 'landing_page'
+                    });
+                }
+            }
 
             function trackSendToComputer(method) {
                 if (typeof fbq === 'function') {
