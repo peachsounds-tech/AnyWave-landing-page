@@ -497,9 +497,10 @@
         // Track download event
         function trackDownload(platform) {
             if (typeof fbq === 'function') {
-                fbq('track', 'Lead', {
-                    content_name: 'Cue Download',
-                    content_category: 'Software Download',
+                fbq('track', 'StartTrial', {
+                    value: '0.00',
+                    currency: 'USD',
+                    content_name: 'Cue',
                     platform: platform
                 });
             }
@@ -573,6 +574,12 @@
             const mobileEmailBtn = document.getElementById('mobileEmail');
 
             function trackSendToComputer(method) {
+                if (typeof fbq === 'function') {
+                    fbq('track', 'Lead', {
+                        content_name: 'Cue Send to Desktop',
+                        content_category: method
+                    });
+                }
                 if (typeof posthog !== 'undefined' && posthog.capture) {
                     posthog.capture('send_to_computer', {
                         ...getBaseEventProps(),
