@@ -92,8 +92,9 @@
             background: var(--bg-primary);
             min-height: 100vh;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
+            padding-top: 8vh;
             color: var(--text-primary);
             line-height: 1.6;
             transition: background 0.3s ease, color 0.3s ease;
@@ -101,16 +102,15 @@
 
         .container {
             text-align: center;
-            padding: 3rem 2rem;
+            padding: 1rem 2rem;
             max-width: 520px;
             width: 100%;
         }
 
         .icon {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 2rem;
-            animation: float 3s ease-in-out infinite;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 0.5rem;
         }
 
         .icon img {
@@ -437,7 +437,7 @@
             <img src="icon1.png" alt="Cue Logo">
         </div>
         <h1>Download Cue</h1>
-        <p class="expectation-note">Download is free, if you don't have an active plan - exports are limited.</p>
+        <p class="expectation-note">Without an active plan you can use all features, with export limitations.</p>
         
         <!-- Supported platform content -->
         <div id="supportedContent">
