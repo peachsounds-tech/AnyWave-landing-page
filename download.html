@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Cue</title>
+    <title>Download BeatCue</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -313,6 +313,124 @@
             opacity: 0.65;
         }
 
+        .open-cue-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+            box-sizing: border-box;
+        }
+
+        .open-cue-modal[hidden] {
+            display: none !important;
+        }
+
+        .open-cue-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(4px);
+        }
+
+        [data-theme="dark"] .open-cue-modal-backdrop {
+            background: rgba(0, 0, 0, 0.65);
+        }
+
+        .open-cue-modal-panel {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 380px;
+            padding: 1.5rem 1.35rem 1.35rem;
+            border-radius: 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        [data-theme="dark"] .open-cue-modal-panel {
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .open-cue-modal-close {
+            position: absolute;
+            top: 0.65rem;
+            right: 0.65rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 1.35rem;
+            line-height: 1;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .open-cue-modal-close:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .open-cue-modal-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 1.75rem 1rem 0;
+            line-height: 1.4;
+            text-align: left;
+        }
+
+        .post-download-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .post-download-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.88rem;
+            font-weight: 500;
+            font-family: inherit;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .post-download-option:hover {
+            background: var(--bg-secondary);
+            border-color: var(--text-muted);
+        }
+
+        .post-download-option:active {
+            transform: scale(0.98);
+        }
+
+        .post-download-thanks {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin: 0.5rem 0 0;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 2rem 1.25rem;
@@ -438,9 +556,9 @@
 <body>
     <div class="container">
         <div class="icon">
-            <img src="icon1.png" alt="Cue Logo">
+            <img src="icon1.png" alt="BeatCue Logo">
         </div>
-        <h1 id="downloadPageTitle">Download Cue</h1>
+        <h1 id="downloadPageTitle">Download BeatCue</h1>
         <p class="expectation-note">Without an active plan you can use all features, with export limitations.</p>
         
         <!-- Supported platform content -->
@@ -459,33 +577,50 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             </div>
-            <p class="mobile-cta-sub mobile-cta-platform">Cue runs on macOS & Windows</p>
+            <p class="mobile-cta-sub mobile-cta-platform">BeatCue runs on macOS & Windows</p>
             <p class="mobile-cta-heading">Continue on your computer</p>
             <div class="mobile-send-actions">
                 <button class="mobile-action-btn mobile-action-primary" id="mobileCopyLink">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10.5 1h-7A1.5 1.5 0 0 0 2 2.5v9h1.5v-9h7V1Zm2.25 3H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16h7.25a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.75 4Zm0 10.5H5.5v-9h7.25v9Z" fill="currentColor"/></svg>
                     <span id="mobileCopyText">Open on your computer</span>
                 </button>
-                <a class="mobile-action-btn mobile-action-secondary" href="https://wa.me/?text=Continue%20editing%20with%20Cue%20on%20desktop:%20https://gocue.app/download" target="_blank" id="mobileWhatsApp">
+                <a class="mobile-action-btn mobile-action-secondary" href="https://wa.me/?text=Continue%20editing%20with%20BeatCue%20on%20desktop:%20https://gocue.app/download" target="_blank" id="mobileWhatsApp">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8.002 1C4.14 1 1 4.07 1 7.84c0 1.21.33 2.39.95 3.42L1 15l3.87-.98c1 .53 2.13.81 3.13.81C11.86 12.83 15 9.76 15 5.99 15 4.07 14.2 2.38 12.87 1.28A6.9 6.9 0 0 0 8.002 1Zm3.53 9.14c-.15.42-.87.8-1.2.85-.31.05-.7.07-1.13-.07a10.3 10.3 0 0 1-1.02-.38 7.04 7.04 0 0 1-3.05-2.69c-.26-.35-.66-.92-.66-1.78s.42-1.25.57-1.42c.15-.17.33-.21.44-.21h.32c.1 0 .24-.04.37.28.14.33.46 1.13.5 1.21.04.09.07.19.01.3-.05.11-.08.17-.16.27l-.24.28c-.08.09-.17.18-.07.35.1.17.42.7.9 1.13.62.55 1.15.72 1.31.8.16.09.26.07.35-.04.1-.11.42-.48.53-.65.11-.17.22-.14.37-.08.15.06.96.45 1.13.53.16.09.27.13.31.2.04.07.04.42-.11.83Z" fill="currentColor"/></svg>
                     Send to WhatsApp
                 </a>
-                <a class="mobile-action-btn mobile-action-tertiary" href="mailto:?subject=Try%20Cue%20%E2%80%93%20music%20retiming%20for%20video%20editors&body=Continue%20editing%20with%20Cue%20on%20desktop%3A%20https%3A%2F%2Fgocue.app%2Fdownload" id="mobileEmail">
+                <a class="mobile-action-btn mobile-action-tertiary" href="mailto:?subject=Try%20BeatCue%20%E2%80%93%20music%20retiming%20for%20video%20editors&body=Continue%20editing%20with%20BeatCue%20on%20desktop%3A%20https%3A%2F%2Fgocue.app%2Fdownload" id="mobileEmail">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 3H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1Zm-.5 1.5L8 8.25 2.5 4.5h11ZM2.5 11.5v-6l5.5 4 5.5-4v6h-11Z" fill="currentColor"/></svg>
                     Send to email
                 </a>
             </div>
             <div class="mobile-copy-toast" id="mobileCopyToast">Link copied. Open it on your computer.</div>
-            <p class="mobile-cta-footer">Mac & Windows · Takes ~30 seconds to install</p>
+            <p class="mobile-cta-footer">Mac & Windows · Recommended: macOS 14+</p>
         </div>
         
+    </div>
+
+    <div class="open-cue-modal" id="openBeatCueModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="openBeatCueModalTitle">
+        <div class="open-cue-modal-backdrop" data-close-open-beatcue-modal></div>
+        <div class="open-cue-modal-panel">
+            <button type="button" class="open-cue-modal-close" data-close-open-beatcue-modal aria-label="Close">&times;</button>
+            <div id="postDownloadPoll" aria-live="polite">
+                <h2 class="open-cue-modal-title" id="openBeatCueModalTitle">Did you manage to open BeatCue?</h2>
+                <div class="post-download-options" role="group" aria-label="Open BeatCue feedback">
+                    <button type="button" class="post-download-option" data-open-beatcue="yes">Yes</button>
+                    <button type="button" class="post-download-option" data-open-beatcue="blocked_os">Blocked by OS</button>
+                    <button type="button" class="post-download-option" data-open-beatcue="didnt_try">Didn’t try yet</button>
+                    <button type="button" class="post-download-option" data-open-beatcue="something_else">Something else</button>
+                </div>
+            </div>
+            <p class="post-download-thanks" id="postDownloadThanks" hidden>Thanks for letting us know.</p>
+        </div>
     </div>
     
     <script>
         // Download URLs
         const DOWNLOAD_URLS = {
-            macos: 'https://github.com/peachsounds-tech/cue-releases/releases/latest/download/Cue.pkg',
-            windows: 'https://github.com/peachsounds-tech/cue-releases/releases/latest/download/Cue.exe'
+            macos: 'https://github.com/peachsounds-tech/cue-releases/releases/latest/download/BeatCue.pkg',
+            windows: 'https://github.com/peachsounds-tech/cue-releases/releases/latest/download/BeatCue.exe'
         };
         
         // Platform display info
@@ -500,7 +635,7 @@
                 fbq('track', 'StartTrial', {
                     value: '0.00',
                     currency: 'USD',
-                    content_name: 'Cue',
+                    content_name: 'BeatCue',
                     platform: platform
                 });
             }
@@ -532,7 +667,7 @@
             if (isSupported) {
                 document.getElementById('supportedContent').style.display = 'block';
                 document.getElementById('unsupportedContent').style.display = 'none';
-                if (pageTitleEl) pageTitleEl.textContent = 'Download Cue';
+                if (pageTitleEl) pageTitleEl.textContent = 'Download BeatCue';
 
                 const downloadBtn = document.getElementById('downloadBtn');
                 const downloadBtnLabel = document.getElementById('downloadBtnLabel');
@@ -547,19 +682,27 @@
 
                 downloadBtn.addEventListener('click', function() {
                     trackDownload(platform);
+                    scheduleOpenBeatCueModal(platform);
                 });
 
                 const otherPlatform = platform === 'macos' ? 'windows' : 'macos';
                 const otherInfo = PLATFORM_INFO[otherPlatform];
                 document.getElementById('otherPlatform').innerHTML = 
-                    `<a href="${DOWNLOAD_URLS[otherPlatform]}">Download for ${otherInfo.name}</a>`;
+                    `<a href="${DOWNLOAD_URLS[otherPlatform]}" class="other-platform-download">Download for ${otherInfo.name}</a>`;
+                const otherDl = document.querySelector('.other-platform-download');
+                if (otherDl) {
+                    otherDl.addEventListener('click', function() {
+                        trackDownload(otherPlatform);
+                        scheduleOpenBeatCueModal(otherPlatform);
+                    });
+                }
                 
             } else {
                 document.getElementById('supportedContent').style.display = 'none';
                 document.getElementById('unsupportedContent').style.display = 'block';
                 if (pageTitleEl) pageTitleEl.textContent = 'Download on desktop';
                 var subtitleEl = document.getElementById('subtitle');
-                if (subtitleEl) subtitleEl.textContent = 'Cue is a desktop app (Mac & Windows).';
+                if (subtitleEl) subtitleEl.textContent = 'BeatCue is a desktop app (Mac & Windows).';
                 document.querySelector('.expectation-note').style.display = 'none';
             }
         }
@@ -580,7 +723,7 @@
             function trackSendToComputer(method) {
                 if (typeof fbq === 'function') {
                     fbq('track', 'Lead', {
-                        content_name: 'Cue Send to Desktop',
+                        content_name: 'BeatCue Send to Desktop',
                         content_category: method
                     });
                 }
@@ -620,6 +763,134 @@
                     trackSendToComputer('email');
                 });
             }
+
+            initOpenBeatCueModal();
+        }
+
+        const OPEN_BEATCUE_STORAGE_KEY = 'cue_open_beatcue_feedback';
+        const OPEN_BEATCUE_MODAL_DELAY_MS = 3000;
+        let openBeatCueModalPlatform = 'macos';
+        let openBeatCueModalPreviousFocus = null;
+        let openBeatCueModalTimerId = null;
+
+        function clearOpenBeatCueModalTimer() {
+            if (openBeatCueModalTimerId !== null) {
+                clearTimeout(openBeatCueModalTimerId);
+                openBeatCueModalTimerId = null;
+            }
+        }
+
+        function hasOpenBeatCueFeedbackAnswered() {
+            try {
+                return !!localStorage.getItem(OPEN_BEATCUE_STORAGE_KEY);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function scheduleOpenBeatCueModal(platform) {
+            if (hasOpenBeatCueFeedbackAnswered()) return;
+            const modal = document.getElementById('openBeatCueModal');
+            if (modal && !modal.hidden) return;
+
+            openBeatCueModalPlatform = platform;
+            clearOpenBeatCueModalTimer();
+
+            openBeatCueModalTimerId = window.setTimeout(function() {
+                openBeatCueModalTimerId = null;
+                if (hasOpenBeatCueFeedbackAnswered()) return;
+                const m = document.getElementById('openBeatCueModal');
+                if (m && !m.hidden) return;
+                openOpenBeatCueModal();
+            }, OPEN_BEATCUE_MODAL_DELAY_MS);
+        }
+
+        function openOpenBeatCueModal() {
+            const modal = document.getElementById('openBeatCueModal');
+            const pollEl = document.getElementById('postDownloadPoll');
+            const thanksEl = document.getElementById('postDownloadThanks');
+            if (!modal || !pollEl || !thanksEl) return;
+
+            pollEl.hidden = false;
+            thanksEl.hidden = true;
+
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+
+            openBeatCueModalPreviousFocus = document.activeElement;
+            const firstOption = modal.querySelector('[data-open-beatcue]');
+            if (firstOption) firstOption.focus();
+
+            document.addEventListener('keydown', onOpenBeatCueModalKeydown);
+        }
+
+        function closeOpenBeatCueModal() {
+            const modal = document.getElementById('openBeatCueModal');
+            if (!modal || modal.hidden) return;
+
+            clearOpenBeatCueModalTimer();
+
+            modal.hidden = true;
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+
+            document.removeEventListener('keydown', onOpenBeatCueModalKeydown);
+
+            if (openBeatCueModalPreviousFocus && typeof openBeatCueModalPreviousFocus.focus === 'function') {
+                try {
+                    openBeatCueModalPreviousFocus.focus();
+                } catch (e) { /* ignore */ }
+            }
+            openBeatCueModalPreviousFocus = null;
+        }
+
+        function onOpenBeatCueModalKeydown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeOpenBeatCueModal();
+            }
+        }
+
+        function initOpenBeatCueModal() {
+            const modal = document.getElementById('openBeatCueModal');
+            const pollEl = document.getElementById('postDownloadPoll');
+            const thanksEl = document.getElementById('postDownloadThanks');
+            if (!modal || !pollEl || !thanksEl) return;
+
+            modal.querySelectorAll('[data-close-open-beatcue-modal]').forEach(function(el) {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    closeOpenBeatCueModal();
+                });
+            });
+
+            pollEl.querySelectorAll('[data-open-beatcue]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const value = btn.getAttribute('data-open-beatcue');
+                    try {
+                        localStorage.setItem(OPEN_BEATCUE_STORAGE_KEY, value);
+                    } catch (e) { /* ignore */ }
+
+                    if (typeof fbq === 'function') {
+                        fbq('trackCustom', 'OpenBeatCueFeedback', { response: value });
+                    }
+                    if (typeof posthog !== 'undefined' && posthog.capture) {
+                        posthog.capture('open_beatcue_feedback', {
+                            ...getBaseEventProps(),
+                            response: value,
+                            page: 'download',
+                            platform: openBeatCueModalPlatform
+                        });
+                    }
+
+                    pollEl.hidden = true;
+                    thanksEl.hidden = false;
+                    window.setTimeout(function() {
+                        closeOpenBeatCueModal();
+                    }, 1400);
+                });
+            });
         }
         
         // Run on page load
