@@ -285,7 +285,8 @@
         // PostHog configuration
         const POSTHOG_API_KEY = 'phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG';
         const POSTHOG_API_HOST = 'https://t.beatcue.app';
-        
+        const CUE_PAGE_VERSION = '1.0.0';
+
         // Track initialization states
         let posthogPreConsentInitialized = false;
         let posthogFullyInitialized = false;
@@ -359,8 +360,8 @@
             });
             
             posthogPreConsentInitialized = true;
-            
-            // Register internal flag immediately so it applies to ALL events (including auto-captured ones like Web vitals)
+            posthog.register({ page_version: CUE_PAGE_VERSION });
+
             if (isInternalTester) {
                 posthog.register({ is_internal: true });
                 console.log('🔧 Internal tester flag registered (pre-consent)');
@@ -436,7 +437,8 @@
             }
             
             posthogFullyInitialized = true;
-            
+            posthog.register({ page_version: CUE_PAGE_VERSION });
+
             // Set person properties for internal tester (only needs to be done once)
             if (isInternalTester) {
                 posthog.setPersonProperties({ is_internal: true });

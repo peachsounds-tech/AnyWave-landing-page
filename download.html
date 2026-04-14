@@ -549,7 +549,10 @@
             initConfig.bootstrap = { distinctID: passedDistinctId };
         }
         
+        const CUE_PAGE_VERSION = '1.0.0';
+
         posthog.init('phc_glfQoJ0XvIyNUy1Q6baVxMLolADg69F9H262U0TiRuG', initConfig);
+        posthog.register({ page_version: CUE_PAGE_VERSION });
         
         if (isInternalTester) {
             posthog.register({ is_internal: true });
