@@ -41,6 +41,26 @@
     /></noscript>
     <!-- End Meta Pixel Code -->
 
+    <!-- Capture UTMs immediately before anything can modify the URL -->
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+            var utms = {};
+            keys.forEach(function(k) { var v = params.get(k); if (v) utms[k] = v; });
+            if (Object.keys(utms).length > 0) {
+                window.__cue_initial_utms = utms;
+                try { sessionStorage.setItem('cue_session_utms', JSON.stringify(utms)); } catch(e) {}
+            } else {
+                try {
+                    var stored = sessionStorage.getItem('cue_session_utms');
+                    if (stored) window.__cue_initial_utms = JSON.parse(stored);
+                } catch(e) {}
+            }
+            window.__cue_initial_url = window.location.href;
+        })();
+    </script>
+
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -570,27 +590,42 @@
         
         // Track page view function
         function trackPostHogPageView(fromCache = false) {
+            // Resolve UTMs from URL or early-captured values (survives replaceState)
+            const earlyUtms = window.__cue_initial_utms || {};
+            const urlParams = new URLSearchParams(window.location.search);
+            const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+            const utms = {};
+            utmKeys.forEach(key => {
+                const value = urlParams.get(key) || earlyUtms[key];
+                if (value) utms[key] = value;
+            });
+
             const baseProps = {
                 page: 'download',
                 platform: detectedPlatform,
-                url: window.location.href,
+                url: window.__cue_initial_url || window.location.href,
                 referrer: document.referrer || 'direct',
                 from_cache: fromCache
             };
+            if (utms.utm_source) baseProps.utm_source = utms.utm_source;
+            if (utms.utm_medium) baseProps.utm_medium = utms.utm_medium;
+            if (utms.utm_campaign) baseProps.utm_campaign = utms.utm_campaign;
+            if (utms.utm_content) baseProps.utm_content = utms.utm_content;
+            if (utms.utm_term) baseProps.utm_term = utms.utm_term;
             
             if (userConsented) {
                 posthog.capture('page_viewed', {
                     ...getBaseEventProps(),
                     ...baseProps
                 });
-                console.log('📊 PostHog: page_viewed tracked (consented)' + (fromCache ? ' [from cache]' : ''));
+                console.log('📊 PostHog: page_viewed tracked (consented, with UTMs)' + (fromCache ? ' [from cache]' : ''));
             } else {
                 posthog.capture('page_viewed', {
                     ...baseProps,
                     screen_width: window.screen.width,
                     screen_height: window.screen.height
                 });
-                console.log('📊 PostHog: page_viewed tracked (anonymous)' + (fromCache ? ' [from cache]' : ''));
+                console.log('📊 PostHog: page_viewed tracked (anonymous, with UTMs)' + (fromCache ? ' [from cache]' : ''));
             }
         }
         

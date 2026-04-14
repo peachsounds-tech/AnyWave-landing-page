@@ -32,6 +32,26 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png">
     
+    <!-- Capture UTMs immediately before anything can modify the URL -->
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+            var utms = {};
+            keys.forEach(function(k) { var v = params.get(k); if (v) utms[k] = v; });
+            if (Object.keys(utms).length > 0) {
+                window.__cue_initial_utms = utms;
+                try { sessionStorage.setItem('cue_session_utms', JSON.stringify(utms)); } catch(e) {}
+            } else {
+                try {
+                    var stored = sessionStorage.getItem('cue_session_utms');
+                    if (stored) window.__cue_initial_utms = JSON.parse(stored);
+                } catch(e) {}
+            }
+            window.__cue_initial_url = window.location.href;
+        })();
+    </script>
+
     <!-- Disable browser scroll restoration -->
     <script>
         if ('scrollRestoration' in history) {
@@ -4731,12 +4751,13 @@
                 return;
             }
             
-            // Capture UTMs from URL (only store to localStorage if consented)
+            // Capture UTMs: try current URL first, fall back to early-captured values
             const urlParams = new URLSearchParams(window.location.search);
             const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
             const utms = {};
+            const earlyUtms = window.__cue_initial_utms || {};
             utmKeys.forEach(key => {
-                const value = urlParams.get(key);
+                const value = urlParams.get(key) || earlyUtms[key];
                 if (value) utms[key] = value;
             });
             
@@ -4792,15 +4813,21 @@
                 });
                 console.log('PostHog: page_viewed (early_access) tracked with person props!');
             } else {
-                // Pre-consent mode: track event with URL/screen but no person properties
-                posthog.capture('page_viewed', {
+                // Pre-consent mode: track event with UTMs but no person properties
+                var anonProps = {
                     page: 'early_access',
-                    url: window.location.href,
+                    url: window.__cue_initial_url || window.location.href,
                     referrer: document.referrer || 'direct',
                     screen_width: window.screen.width,
                     screen_height: window.screen.height
-                });
-                console.log('PostHog: page_viewed (early_access) tracked (anonymous, no geo)');
+                };
+                if (utms.utm_source) anonProps.utm_source = utms.utm_source;
+                if (utms.utm_medium) anonProps.utm_medium = utms.utm_medium;
+                if (utms.utm_campaign) anonProps.utm_campaign = utms.utm_campaign;
+                if (utms.utm_content) anonProps.utm_content = utms.utm_content;
+                if (utms.utm_term) anonProps.utm_term = utms.utm_term;
+                posthog.capture('page_viewed', anonProps);
+                console.log('PostHog: page_viewed (early_access) tracked (anonymous, with UTMs)');
             }
         }
         
