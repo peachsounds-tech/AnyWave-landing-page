@@ -316,8 +316,20 @@
          * Get base properties to include in all events
          * Includes is_internal flag if tester mode is enabled
          */
+        function getUtmProps() {
+            const earlyUtms = window.__cue_initial_utms || {};
+            const urlParams = new URLSearchParams(window.location.search);
+            const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+            const utms = {};
+            utmKeys.forEach(key => {
+                const value = urlParams.get(key) || earlyUtms[key];
+                if (value) utms[key] = value;
+            });
+            return utms;
+        }
+
         function getBaseEventProps() {
-            const props = {};
+            const props = { ...getUtmProps() };
             if (isInternalTester) {
                 props.is_internal = true;
             }

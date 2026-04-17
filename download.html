@@ -283,8 +283,20 @@
             console.log('🔧 Internal tester flag detected');
         }
         
+        function getUtmProps() {
+            const earlyUtms = window.__cue_initial_utms || {};
+            const urlParams = new URLSearchParams(window.location.search);
+            const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+            const utms = {};
+            utmKeys.forEach(key => {
+                const value = urlParams.get(key) || earlyUtms[key];
+                if (value) utms[key] = value;
+            });
+            return utms;
+        }
+
         function getBaseEventProps() {
-            const props = {};
+            const props = { ...getUtmProps() };
             if (isInternalTester) props.is_internal = true;
             return props;
         }
@@ -315,30 +327,17 @@
         
         // Track page view function
         function trackPostHogPageView(fromCache = false) {
-            const earlyUtms = window.__cue_initial_utms || {};
-            const urlParams = new URLSearchParams(window.location.search);
-            const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-            const utms = {};
-            utmKeys.forEach(key => {
-                const value = urlParams.get(key) || earlyUtms[key];
-                if (value) utms[key] = value;
-            });
-
             const baseProps = {
+                ...getBaseEventProps(),
                 page: 'download',
                 platform: detectedPlatform,
                 url: window.__cue_initial_url || window.location.href,
                 referrer: document.referrer || 'direct',
                 from_cache: fromCache
             };
-            if (utms.utm_source) baseProps.utm_source = utms.utm_source;
-            if (utms.utm_medium) baseProps.utm_medium = utms.utm_medium;
-            if (utms.utm_campaign) baseProps.utm_campaign = utms.utm_campaign;
-            if (utms.utm_content) baseProps.utm_content = utms.utm_content;
-            if (utms.utm_term) baseProps.utm_term = utms.utm_term;
-            
+
             if (userConsented) {
-                posthog.capture('page_viewed', { ...getBaseEventProps(), ...baseProps });
+                posthog.capture('page_viewed', baseProps);
                 console.log('📊 PostHog: page_viewed tracked (consented, with UTMs)' + (fromCache ? ' [from cache]' : ''));
             } else {
                 posthog.capture('page_viewed', { ...baseProps, screen_width: window.screen.width, screen_height: window.screen.height });
@@ -448,12 +447,8 @@
             if (typeof fbq === 'function') {
                 fbq('track', 'StartTrial', { value: '0.00', currency: 'USD', content_name: 'BeatCue', platform: platform });
             }
-            var props = { page: 'download', platform: platform };
-            if (userConsented) {
-                posthog.capture('trial_download_started', { ...getBaseEventProps(), ...props, source: 'free_trial_page' });
-            } else {
-                posthog.capture('trial_download_started', { ...props, url: window.location.href });
-            }
+            var props = { ...getBaseEventProps(), page: 'download', platform: platform, url: window.location.href, source: 'free_trial_page' };
+            posthog.capture('trial_download_started', props);
         }
         
         function setupUI(platform) {
