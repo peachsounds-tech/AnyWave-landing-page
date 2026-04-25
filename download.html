@@ -278,26 +278,32 @@
         const userConsented = hasExistingConsent();
         const isInternalTester = localStorage.getItem('cue_internal_tester') === 'true';
 
-        // Read anonymous ID passed from the landing page via URL param.
-        // This preserves identity for non-consenting users whose PostHog ID
-        // lives only in memory and is lost on page navigation.
-        function getPassedDistinctId() {
+        // BeatCue browser ID (bcid): session-scoped, used for PostHog + loopback pairing with the app.
+        function getOrCreateBcid() {
             try {
-                return new URLSearchParams(window.location.search).get('ph_id') || null;
+                const params = new URLSearchParams(window.location.search);
+                const fromUrl = params.get('bcid') || params.get('ph_id');
+                let b = sessionStorage.getItem('cue_bcid') || fromUrl;
+                if (!b) {
+                    b = 'bc_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2)));
+                }
+                sessionStorage.setItem('cue_bcid', b);
+                return b;
             } catch (e) {
-                return null;
+                return 'bc_' + (Date.now() + '-' + Math.random().toString(36).slice(2));
             }
         }
-        const passedDistinctId = getPassedDistinctId();
+        const cueBcid = getOrCreateBcid();
+        window.__cue_bcid = cueBcid;
 
-        // Clean ph_id from address bar immediately (cosmetic, doesn't affect tracking)
-        if (passedDistinctId) {
-            try {
-                const cleanUrl = new URL(window.location.href);
-                cleanUrl.searchParams.delete('ph_id');
-                history.replaceState(null, '', cleanUrl.toString());
-            } catch (e) { /* ignore */ }
-        }
+        // Clean bcid / legacy ph_id from address bar (cosmetic)
+        try {
+            const cleanUrl = new URL(window.location.href);
+            let changed = false;
+            if (cleanUrl.searchParams.has('bcid')) { cleanUrl.searchParams.delete('bcid'); changed = true; }
+            if (cleanUrl.searchParams.has('ph_id')) { cleanUrl.searchParams.delete('ph_id'); changed = true; }
+            if (changed) history.replaceState(null, '', cleanUrl.toString());
+        } catch (e) { /* ignore */ }
         
         // Initialize with appropriate persistence based on consent
         const initConfig = {
@@ -314,11 +320,8 @@
             initConfig.disable_geoip = true;
         }
 
-        // Bootstrap with the same ID from the landing page so all events
-        // for this visit are linked, even without cookies/localStorage
-        if (passedDistinctId) {
-            initConfig.bootstrap = { distinctID: passedDistinctId };
-        }
+        // Bootstrap PostHog with bcid so events match loopback pairing + analytics in the app
+        initConfig.bootstrap = { distinctID: cueBcid };
         
         const CUE_PAGE_VERSION = '1.0.0';
 
@@ -492,6 +495,10 @@
             macos: { name: 'macOS' },
             windows: { name: 'Windows' }
         };
+        
+        // Check if Windows downloads should be blocked (force_mac=true)
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceMac = urlParams.get('force_mac') === 'true';
 
         function trackDownload(platform) {
             if (typeof fbq === 'function') {
@@ -508,11 +515,164 @@
             if (window.__cue_fbclid) props.fbclid = window.__cue_fbclid;
             posthog.capture('trial_download_started', props);
         }
+
+        /** Loopback pairing: poll BeatCue app on 127.0.0.1 until /beatcue/ping responds, then POST /beatcue/pair */
+        var PAIR_PORT_MIN = 49831;
+        var PAIR_PORT_MAX = 49850;
+        var PAIR_POLL_MS = 2000;
+        var PAIR_FETCH_MS = 400;
+        var PAIR_MAX_MS = 15 * 60 * 1000;
+        var PAIR_HIDDEN_GIVEUP_MS = 2 * 60 * 1000;
+
+        function fetchWithTimeout(url, options, timeoutMs) {
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var timer = setTimeout(function() {
+                if (ctrl) ctrl.abort();
+            }, timeoutMs);
+            var opts = options || {};
+            if (ctrl) opts.signal = ctrl.signal;
+            return fetch(url, opts).finally(function() { clearTimeout(timer); });
+        }
+
+        function scanPairingPort() {
+            return new Promise(function(resolve) {
+                var ports = [];
+                for (var p = PAIR_PORT_MIN; p <= PAIR_PORT_MAX; p++) ports.push(p);
+                var settled = false;
+                var pending = ports.length;
+                ports.forEach(function(port) {
+                    fetchWithTimeout('http://127.0.0.1:' + port + '/beatcue/ping', { method: 'GET', mode: 'cors', credentials: 'omit' }, PAIR_FETCH_MS)
+                        .then(function(r) {
+                            if (!r || !r.ok) throw new Error('bad');
+                            return r.text();
+                        })
+                        .then(function(t) {
+                            try { return JSON.parse(t); } catch (e) { throw new Error('bad'); }
+                        })
+                        .then(function(j) {
+                            if (settled) return;
+                            if (j && j.protocol_version === 1 && j.nonce) {
+                                settled = true;
+                                resolve({ port: port, data: j });
+                            }
+                        })
+                        .catch(function() { /* ignore */ })
+                        .finally(function() {
+                            pending--;
+                            if (pending === 0 && !settled) resolve(null);
+                        });
+                });
+            });
+        }
+
+        function postPair(port, nonce, bcid) {
+            return fetch('http://127.0.0.1:' + port + '/beatcue/pair', {
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'omit',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bcid: bcid, nonce: nonce, web_ts: Date.now() })
+            }).then(function(r) {
+                return r.text().then(function(t) {
+                    try {
+                        return { ok: r.ok, status: r.status, body: JSON.parse(t) };
+                    } catch (e) {
+                        return { ok: false, status: r.status, body: null };
+                    }
+                });
+            });
+        }
+
+        function markPairingChecklistDone() {
+            var el = document.getElementById('checkEdit');
+            if (!el) return;
+            el.classList.remove('loading', 'active');
+            el.classList.add('checked');
+            var lbl = el.querySelector('.dl-check-label');
+            if (lbl) lbl.textContent = 'Start editing';
+        }
+
+        function startPairingPoller() {
+            try {
+                if (sessionStorage.getItem('cue_paired') === 'true') return;
+            } catch (e) { /* ignore */ }
+
+            var bcid = window.__cue_bcid;
+            if (!bcid) return;
+
+            var startTs = Date.now();
+            var hiddenSince = null;
+            var timer = null;
+
+            function stop() {
+                if (timer) clearInterval(timer);
+                timer = null;
+                document.removeEventListener('visibilitychange', onVis);
+            }
+
+            function onVis() {
+                if (document.visibilityState === 'hidden') {
+                    if (hiddenSince === null) hiddenSince = Date.now();
+                } else {
+                    hiddenSince = null;
+                }
+            }
+            document.addEventListener('visibilitychange', onVis);
+
+            function tick() {
+                if (Date.now() - startTs > PAIR_MAX_MS) { stop(); return; }
+                if (hiddenSince !== null && Date.now() - hiddenSince > PAIR_HIDDEN_GIVEUP_MS) { stop(); return; }
+
+                scanPairingPort().then(function(found) {
+                    if (!found) return;
+                    postPair(found.port, found.data.nonce, bcid).then(function(res) {
+                        if (res.ok && res.body && res.body.ok === true && res.body.app_bcid) {
+                            try { sessionStorage.setItem('cue_paired', 'true'); } catch (e) { /* ignore */ }
+                            if (typeof posthog !== 'undefined' && posthog.capture) {
+                                posthog.capture('pairing_completed', { ...getBaseEventProps(), page: 'download', source: 'loopback', app_bcid: res.body.app_bcid });
+                            }
+                            markPairingChecklistDone();
+                            stop();
+                        }
+                    }).catch(function() { /* keep polling */ });
+                });
+            }
+
+            tick();
+            timer = setInterval(tick, PAIR_POLL_MS);
+        }
         
         function setupUI(platform) {
             var isSupported = platform === 'macos' || platform === 'windows';
+            
+            // Block Windows downloads if force_mac=true
+            var blockWindowsDownload = forceMac && platform === 'windows';
 
-            if (isSupported) {
+            if (blockWindowsDownload) {
+                // Show "Windows coming soon" message
+                document.getElementById('supportedContent').style.display = 'block';
+                document.getElementById('unsupportedContent').style.display = 'none';
+                
+                document.getElementById('downloadPageTitle').textContent = 'Windows Coming Soon';
+                document.getElementById('dlSubtitle').textContent = 'BeatCue is currently available for macOS only';
+                
+                // Hide the checklist
+                var checklist = document.getElementById('dlChecklist');
+                if (checklist) checklist.style.display = 'none';
+                
+                // Hide fallback link
+                var fallback = document.getElementById('dlFallback');
+                if (fallback) fallback.style.display = 'none';
+                
+                // Update security tip to show Windows coming soon message
+                var securityTipEl = document.getElementById('securityTip');
+                if (securityTipEl) {
+                    securityTipEl.style.display = '';
+                    document.getElementById('securityTipHeader').innerHTML = '🪟 Windows version in development';
+                    document.getElementById('securityTipBody').innerHTML = 'We\'re working on bringing BeatCue to Windows.<br>In the meantime, BeatCue is available for <strong>macOS 14+</strong>.';
+                }
+                
+            } else if (isSupported) {
                 document.getElementById('supportedContent').style.display = 'block';
                 document.getElementById('unsupportedContent').style.display = 'none';
 
@@ -554,8 +714,11 @@
         function init() {
             var platform = detectedPlatform;
             setupUI(platform);
+            
+            // Block Windows downloads if force_mac=true
+            var blockWindowsDownload = forceMac && platform === 'windows';
 
-            if (platform === 'macos' || platform === 'windows') {
+            if ((platform === 'macos' || platform === 'windows') && !blockWindowsDownload) {
                 setTimeout(function() {
                     var a = document.createElement('a');
                     a.href = DOWNLOAD_URLS[platform];
@@ -564,6 +727,7 @@
                     a.click();
                     document.body.removeChild(a);
                     trackDownload(platform);
+                    startPairingPoller();
 
                     setTimeout(function() {
                         var chk = document.getElementById('checkDownload');
