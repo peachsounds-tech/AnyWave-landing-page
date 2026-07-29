@@ -5946,6 +5946,72 @@
 
         const PAIRINGS_BASE = 'https://peachsounds-webhook.sareldu.workers.dev';
 
+        // Google Ads "Request quote" conversion — same action as download.html.
+        var GOOGLE_ADS_DOWNLOAD_SEND_TO = 'AW-18317916073/H-gBCKTHnNUcEKnv1J5E';
+
+        function makeCueTransactionId() {
+            return (crypto.randomUUID
+                ? crypto.randomUUID()
+                : String(Date.now()) + Math.random().toString(36).slice(2));
+        }
+
+        function getGoogleClickIds() {
+            var out = {};
+            var sources = [window.location.search];
+            if (window.__cue_initial_url) {
+                try { sources.push(new URL(window.__cue_initial_url).search); } catch (e) {}
+            }
+            function fromCookie(cookieName) {
+                try {
+                    var m = document.cookie.match(new RegExp('(?:^|; )' + cookieName + '=([^;]+)'));
+                    if (!m) return null;
+                    var parts = decodeURIComponent(m[1]).split('.');
+                    return parts.length >= 3 ? parts.slice(2).join('.') : null;
+                } catch (e) { return null; }
+            }
+            var cookieFallback = {
+                gclid:  fromCookie('_gcl_aw'),
+                gbraid: fromCookie('_gcl_gb'),
+                wbraid: fromCookie('_gcl_gb')
+            };
+            ['gclid', 'gbraid', 'wbraid'].forEach(function (key) {
+                var val = null;
+                for (var i = 0; i < sources.length; i++) {
+                    val = new URLSearchParams(sources[i]).get(key);
+                    if (val) break;
+                }
+                if (!val) val = cookieFallback[key];
+                if (val) out[key] = val;
+            });
+            return out;
+        }
+
+        function postGoogleAdsServerConversion(opts) {
+            try {
+                var g = getGoogleClickIds();
+                fetch(PAIRINGS_BASE + '/gads', {
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    keepalive: true,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_name: opts.event_name,
+                        transaction_id: opts.transaction_id,
+                        event_source_url: window.location.href,
+                        internal_name: opts.internal_name || null,
+                        value: typeof opts.value === 'number' ? opts.value : 1.0,
+                        currency: opts.currency || 'ILS',
+                        user_data: {
+                            gclid:  g.gclid  || null,
+                            gbraid: g.gbraid || null,
+                            wbraid: g.wbraid || null
+                        }
+                    })
+                }).catch(function () {});
+            } catch (e) { /* never block the click */ }
+        }
+
         function postWindowsStorePairing(bcid) {
             try {
                 // Re-read at click time as a safety net. By now fbevents.js has
@@ -5983,11 +6049,28 @@
             }
             // Google Ads: fire on the landing-page Windows CTA (these users
             // never hit download.html — they go straight to the Store).
+            // Dual-fire browser tag + /gads with a shared transaction_id.
             if (typeof gtag === 'function' && !window.__cue_gads_download_fired) {
                 window.__cue_gads_download_fired = true;
+                var downloadTxId = makeCueTransactionId();
                 gtag('event', 'trial_download_started', {
                     platform: 'windows',
                     source: 'landing_to_store'
+                });
+                if (GOOGLE_ADS_DOWNLOAD_SEND_TO) {
+                    gtag('event', 'conversion', {
+                        send_to: GOOGLE_ADS_DOWNLOAD_SEND_TO,
+                        value: 1.0,
+                        currency: 'ILS',
+                        transaction_id: downloadTxId
+                    });
+                }
+                postGoogleAdsServerConversion({
+                    event_name: 'trial_download',
+                    transaction_id: downloadTxId,
+                    value: 1.0,
+                    currency: 'ILS',
+                    internal_name: 'landing_windows_store'
                 });
             }
             if (typeof posthog !== 'undefined' && posthog.capture) {
@@ -6391,38 +6474,8 @@
             // =====================================================
             var GOOGLE_ADS_SEND_TO_DESKTOP_SEND_TO = 'AW-18317916073/1x2-COL5tNQcEKnv1J5E';
 
-            // Collect Google click IDs from the current URL, the original
-            // landing URL, then the first-party _gcl cookies.
-            function getGoogleClickIds() {
-                var out = {};
-                var sources = [window.location.search];
-                if (window.__cue_initial_url) {
-                    try { sources.push(new URL(window.__cue_initial_url).search); } catch (e) {}
-                }
-                function fromCookie(cookieName) {
-                    try {
-                        var m = document.cookie.match(new RegExp('(?:^|; )' + cookieName + '=([^;]+)'));
-                        if (!m) return null;
-                        var parts = decodeURIComponent(m[1]).split('.');
-                        return parts.length >= 3 ? parts.slice(2).join('.') : null;
-                    } catch (e) { return null; }
-                }
-                var cookieFallback = {
-                    gclid:  fromCookie('_gcl_aw'),
-                    gbraid: fromCookie('_gcl_gb'),
-                    wbraid: fromCookie('_gcl_gb')
-                };
-                ['gclid', 'gbraid', 'wbraid'].forEach(function (key) {
-                    var val = null;
-                    for (var i = 0; i < sources.length; i++) {
-                        val = new URLSearchParams(sources[i]).get(key);
-                        if (val) break;
-                    }
-                    if (!val) val = cookieFallback[key];
-                    if (val) out[key] = val;
-                });
-                return out;
-            }
+            // getGoogleClickIds / postGoogleAdsServerConversion live in outer scope
+            // (near PAIRINGS_BASE) so Windows Store downloads can dual-fire too.
 
             // URL a mobile user hands off to their computer. Carries bcid + ad
             // click IDs so the desktop download page adopts the same identity.
@@ -6448,10 +6501,19 @@
                     gtag('event', 'send_to_desktop', { method: method, platform: detectedDevice, source: 'landing_page' });
                     if (GOOGLE_ADS_SEND_TO_DESKTOP_SEND_TO && !window.__cue_gads_send_to_desktop_fired) {
                         window.__cue_gads_send_to_desktop_fired = true;
+                        var sendTxId = makeCueTransactionId();
                         gtag('event', 'conversion', {
                             send_to: GOOGLE_ADS_SEND_TO_DESKTOP_SEND_TO,
                             value: 1.0,
-                            currency: 'ILS'
+                            currency: 'ILS',
+                            transaction_id: sendTxId
+                        });
+                        postGoogleAdsServerConversion({
+                            event_name: 'send_to_desktop',
+                            transaction_id: sendTxId,
+                            value: 1.0,
+                            currency: 'ILS',
+                            internal_name: 'landing_send_to_desktop'
                         });
                     }
                 }
@@ -6647,7 +6709,8 @@
                     });
                 }
 
-                // Google side — gtag event (+ optional Google Ads conversion).
+                // Google side — gtag event (+ optional Google Ads conversion)
+                // + /gads server upload (worker soft-skips if unmapped).
                 if (typeof gtag === 'function') {
                     gtag('event', 'checkout_clicked', {
                         plan: 'cue_pro',
@@ -6665,6 +6728,13 @@
                         });
                     }
                 }
+                postGoogleAdsServerConversion({
+                    event_name: 'checkout_clicked',
+                    transaction_id: eventID,
+                    value: 12.00,
+                    currency: 'USD',
+                    internal_name: 'lemonsqueezy_buy_click'
+                });
             };
 
         })();

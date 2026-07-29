@@ -1,11 +1,13 @@
 /**
  * BeatCue Webhook Worker
  *
- * Two responsibilities:
+ * Responsibilities:
  *   1. Lemon Squeezy → PostHog: receive purchase webhooks and forward to PostHog
  *   2. Web ↔ desktop pairing: bridge the bcid + Meta attribution captured on
  *      the download page over to the freshly installed desktop app, without
  *      tripping Chrome's Local Network Access prompt.
+ *   3. Meta Conversions API proxy (`/capi`) and Google Ads click-conversion
+ *      upload proxy (`/gads`) so browser + desktop keep tokens off-client.
  *
  * Deploy to Cloudflare Workers via `wrangler deploy`.
  */
@@ -34,10 +36,19 @@ const PAIRINGS_ALLOWED_ORIGINS = new Set([
     'http://127.0.0.1:8080',
 ]);
 
-/** How long a pending pairing record lingers before KV evicts it.
- *  24 hours covers most install funnels (download → installer cooldown →
- *  first launch). Longer windows raise the chance of NAT misattribution. */
+/** How long IP/ASN-keyed pending pairing records linger before KV evicts
+ *  them. 24 hours covers most install funnels (download → installer
+ *  cooldown → first launch). Longer windows raise the chance of NAT
+ *  misattribution — these keys are collision-prone by design. */
 const PAIRING_TTL_SECONDS = 24 * 60 * 60;
+
+/** How long the deterministic `pair:bcid:<bcid>` mirror lingers. This key
+ *  cannot mis-attribute (lookup is by the page-minted bcid the Store
+ *  round-trips end-to-end), so it can outlive the heuristic keys and cover
+ *  deferred Store installs / reboots / cross-device installs that land
+ *  days after the click. Desktop identity no longer depends on this TTL
+ *  (Store cid → adoptBcidIdentity is offline), but Meta IDs still do. */
+const PAIRING_BCID_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 /** How long a "claimed:<bcid>" marker survives so the download page can
  *  notice the desktop app paired and tick the launch checklist item. The
@@ -101,6 +112,32 @@ const CAPI_ACTION_SOURCES = new Set([
     'website', 'email', 'app', 'phone_call', 'chat',
     'physical_store', 'system_generated', 'business_messaging', 'other',
 ]);
+
+// ─── Google Ads conversion upload constants ───────────────────────────────────
+
+/** Ads API version pinned for predictable schema. Bump deliberately after
+ *  testing — Google sunsets versions on a rolling schedule. */
+const GOOGLE_ADS_API_VERSION = 'v19';
+
+/** Hard upper bound on /gads request bodies. */
+const GADS_MAX_BODY_BYTES = 8 * 1024;
+
+/**
+ * event_name values the worker will upload. Each must map to a conversion
+ * action resource name via the GOOGLE_ADS_CONV_ACTIONS JSON secret
+ * (e.g. {"send_to_desktop":"customers/123/conversionActions/456"}).
+ * Keep in sync with landing-page dual-fire call sites.
+ */
+const GADS_EVENT_NAMES = new Set([
+    'send_to_desktop',
+    'trial_download',
+    'checkout_clicked',
+]);
+
+/** Module-scoped OAuth access-token cache. Workers may reuse the isolate
+ *  across requests; a miss just means one extra token round-trip. */
+let gadsAccessToken = null;
+let gadsAccessTokenExpiresAt = 0;
 
 // Lemon Squeezy webhook secret (set this in Cloudflare dashboard as environment variable)
 // const LEMONSQUEEZY_WEBHOOK_SECRET = env.LEMONSQUEEZY_WEBHOOK_SECRET;
@@ -619,8 +656,15 @@ async function handlePairings(request, env, url) {
         };
 
         const json = JSON.stringify(payload);
+        // Deterministic bcid key gets the long TTL; heuristic IP/ASN keys
+        // stay short so a delayed claim can't NAT-collide with a later
+        // install on the same coarse network.
         await Promise.all(allKeys.map(k =>
-            env.PAIRINGS.put(k, json, { expirationTtl: PAIRING_TTL_SECONDS })
+            env.PAIRINGS.put(k, json, {
+                expirationTtl: k === bcidKey
+                    ? PAIRING_BCID_TTL_SECONDS
+                    : PAIRING_TTL_SECONDS,
+            })
         ));
 
         // Single-line structured log so `wrangler tail` shows what the
@@ -739,15 +783,6 @@ async function handlePairings(request, env, url) {
             );
         }
 
-        // Strip internal sibling-key linkage before returning to the
-        // desktop — they're server-only implementation details.
-        let responseBody = raw;
-        if (parsed && (Object.prototype.hasOwnProperty.call(parsed, '_alts')
-                    || Object.prototype.hasOwnProperty.call(parsed, '_alt'))) {
-            const { _alts, _alt, ...rest } = parsed;
-            responseBody = JSON.stringify(rest);
-        }
-
         console.log(JSON.stringify({
             evt: 'pair_claim_hit',
             via: hitVia,
@@ -762,7 +797,17 @@ async function handlePairings(request, env, url) {
             payload_age_s: parsed && typeof parsed.ts === 'number' ? Math.round((Date.now() - parsed.ts) / 1000) : null,
         }));
 
-        return new Response(responseBody, {
+        // Always return a JSON object that includes `via`, so the desktop
+        // `pairing_completed.pair_via` property actually populates. Older
+        // workers only logged hitVia — the stored KV payload has no via
+        // field, so PairingClient.parseString("via") always yielded "".
+        // Strip `_alts`/`_alt` (server-only sibling-key linkage) before
+        // handing the payload to the desktop.
+        const outObj = (parsed && typeof parsed === 'object') ? parsed : {};
+        const { _alts, _alt, ...publicFields } = outObj;
+        const responseJson = JSON.stringify({ ...publicFields, via: hitVia });
+
+        return new Response(responseJson, {
             status: 200,
             headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
         });
@@ -1109,6 +1154,334 @@ async function handleCapi(request, env, url) {
     });
 }
 
+// ─── Google Ads click-conversion upload handler ───────────────────────────────
+
+/** UTC timestamp in the format Google Ads requires:
+ *  `yyyy-mm-dd hh:mm:ss+00:00`. */
+function formatGoogleAdsDateTime(date = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} `
+        + `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}+00:00`;
+}
+
+/** Parse GOOGLE_ADS_CONV_ACTIONS secret (JSON object of event_name → resource). */
+function parseGadsConvActions(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        return parsed;
+    } catch (_) {
+        return null;
+    }
+}
+
+const GADS_CONV_ACTION_RE = /^customers\/\d+\/conversionActions\/\d+$/;
+
+/**
+ * Exchange the long-lived refresh token for a short-lived access token.
+ * Caches on the isolate so warm requests skip the OAuth round-trip.
+ */
+async function getGoogleAdsAccessToken(env) {
+    const now = Date.now();
+    if (gadsAccessToken && now < gadsAccessTokenExpiresAt - 60_000) {
+        return gadsAccessToken;
+    }
+
+    const body = new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: env.GOOGLE_ADS_CLIENT_ID,
+        client_secret: env.GOOGLE_ADS_CLIENT_SECRET,
+        refresh_token: env.GOOGLE_ADS_REFRESH_TOKEN,
+    });
+
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+    });
+    const text = await r.text();
+    let json;
+    try { json = JSON.parse(text); } catch (_) { json = null; }
+
+    if (!r.ok || !json || !json.access_token) {
+        console.log(JSON.stringify({
+            evt: 'gads_oauth_error',
+            status: r.status,
+            error: json && (json.error || json.error_description) || text.slice(0, 200),
+        }));
+        throw new Error('oauth_failed');
+    }
+
+    gadsAccessToken = json.access_token;
+    const expiresInSec = typeof json.expires_in === 'number' ? json.expires_in : 3600;
+    gadsAccessTokenExpiresAt = now + expiresInSec * 1000;
+    return gadsAccessToken;
+}
+
+/**
+ * POST /gads  — browser (or desktop) pushes a single Google Ads click conversion.
+ *
+ * Body:
+ *   {
+ *     event_name:       string  (whitelisted: send_to_desktop | trial_download | checkout_clicked),
+ *     transaction_id:   string  (UUID; must match gtag transaction_id for dedupe),
+ *     event_source_url: string  (optional; logged only),
+ *     internal_name:    string  (optional; logged),
+ *     value:            number  (optional),
+ *     currency:         string  (optional; default ILS to match existing gtag),
+ *     user_data: {
+ *       gclid, gbraid, wbraid   (at least one required to upload; else skipped)
+ *     }
+ *   }
+ *
+ * Maps event_name → conversion action via GOOGLE_ADS_CONV_ACTIONS JSON secret,
+ * refreshes an OAuth access token, and calls
+ * customers:uploadClickConversions. Returns skipped when no click id is
+ * present (organic traffic) so the client can always dual-fire safely.
+ */
+async function handleGads(request, env, url) {
+    const origin = request.headers.get('origin') || '';
+    const cors = pairingsCorsHeaders(origin);
+
+    if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: cors });
+    }
+    if (request.method !== 'POST') {
+        return new Response('method_not_allowed', { status: 405, headers: cors });
+    }
+
+    if (origin && !PAIRINGS_ALLOWED_ORIGINS.has(origin)) {
+        console.log(JSON.stringify({ evt: 'gads_forbidden_origin', origin }));
+        return new Response(JSON.stringify({ ok: false, error: 'forbidden_origin' }), {
+            status: 403,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const configured = !!(
+        env.GOOGLE_ADS_DEVELOPER_TOKEN
+        && env.GOOGLE_ADS_CLIENT_ID
+        && env.GOOGLE_ADS_CLIENT_SECRET
+        && env.GOOGLE_ADS_REFRESH_TOKEN
+        && env.GOOGLE_ADS_CUSTOMER_ID
+        && env.GOOGLE_ADS_CONV_ACTIONS
+    );
+    if (!configured) {
+        console.error('GADS: missing Google Ads secrets — see README § Google Ads API');
+        return new Response(JSON.stringify({ ok: false, error: 'server_not_configured' }), {
+            status: 503,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    let body;
+    try {
+        const text = await request.text();
+        if (text.length > GADS_MAX_BODY_BYTES) {
+            return new Response(JSON.stringify({ ok: false, error: 'payload_too_large' }), {
+                status: 413,
+                headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+            });
+        }
+        body = JSON.parse(text);
+    } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: 'invalid_json' }), {
+            status: 400,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const eventName = clampString(body.event_name, 64);
+    if (!eventName || !GADS_EVENT_NAMES.has(eventName)) {
+        console.log(JSON.stringify({ evt: 'gads_rejected_event_name', event_name: eventName }));
+        return new Response(JSON.stringify({ ok: false, error: 'event_name_not_allowed' }), {
+            status: 400,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const transactionId = clampString(body.transaction_id, 96);
+    if (!transactionId) {
+        return new Response(JSON.stringify({ ok: false, error: 'transaction_id_required' }), {
+            status: 400,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const convActions = parseGadsConvActions(env.GOOGLE_ADS_CONV_ACTIONS);
+    if (!convActions) {
+        return new Response(JSON.stringify({ ok: false, error: 'conv_actions_invalid' }), {
+            status: 503,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const conversionAction = clampString(convActions[eventName], 128);
+    if (!conversionAction || !GADS_CONV_ACTION_RE.test(conversionAction)) {
+        console.log(JSON.stringify({
+            evt: 'gads_unmapped_event',
+            event_name: eventName,
+            has_key: !!(convActions && convActions[eventName]),
+        }));
+        // Soft-skip: allowlist includes events we may not have wired yet
+        // (e.g. checkout_clicked before a conversion action exists).
+        return new Response(JSON.stringify({
+            ok: true,
+            skipped: 'conversion_action_unmapped',
+            event_name: eventName,
+        }), {
+            status: 200,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const ud = (body.user_data && typeof body.user_data === 'object') ? body.user_data : {};
+    const gclid  = clampString(ud.gclid,  256);
+    const gbraid = clampString(ud.gbraid, 256);
+    const wbraid = clampString(ud.wbraid, 256);
+
+    if (!gclid && !gbraid && !wbraid) {
+        console.log(JSON.stringify({
+            evt: 'gads_skipped_no_click_id',
+            event_name: eventName,
+            transaction_id: transactionId,
+        }));
+        return new Response(JSON.stringify({
+            ok: true,
+            skipped: 'no_click_id',
+            event_name: eventName,
+        }), {
+            status: 200,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const customerId = String(env.GOOGLE_ADS_CUSTOMER_ID).replace(/-/g, '');
+    if (!/^\d{6,12}$/.test(customerId)) {
+        return new Response(JSON.stringify({ ok: false, error: 'bad_customer_id' }), {
+            status: 503,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const conversion = {
+        conversionAction,
+        conversionDateTime: formatGoogleAdsDateTime(),
+        orderId: transactionId,
+    };
+    if (gclid)  conversion.gclid  = gclid;
+    if (gbraid) conversion.gbraid = gbraid;
+    if (wbraid) conversion.wbraid = wbraid;
+
+    const value = typeof body.value === 'number' && Number.isFinite(body.value)
+        ? body.value
+        : (typeof body.value === 'string' && body.value !== '' && Number.isFinite(Number(body.value))
+            ? Number(body.value) : null);
+    if (value !== null) conversion.conversionValue = value;
+    const currency = clampString(body.currency, 8) || 'ILS';
+    if (value !== null) conversion.currencyCode = currency;
+
+    let accessToken;
+    try {
+        accessToken = await getGoogleAdsAccessToken(env);
+    } catch (_) {
+        return new Response(JSON.stringify({ ok: false, error: 'oauth_failed' }), {
+            status: 502,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': env.GOOGLE_ADS_DEVELOPER_TOKEN,
+        'Content-Type': 'application/json',
+    };
+    const loginCustomerId = env.GOOGLE_ADS_LOGIN_CUSTOMER_ID
+        ? String(env.GOOGLE_ADS_LOGIN_CUSTOMER_ID).replace(/-/g, '')
+        : '';
+    if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
+
+    const adsUrl = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/`
+        + `customers/${encodeURIComponent(customerId)}:uploadClickConversions`;
+
+    const payload = {
+        conversions: [conversion],
+        partialFailure: true,
+    };
+    // Optional: validate-only mode for dry runs (no attribution).
+    if (env.GOOGLE_ADS_VALIDATE_ONLY === '1' || env.GOOGLE_ADS_VALIDATE_ONLY === 'true') {
+        payload.validateOnly = true;
+    }
+
+    let upstreamStatus = 0;
+    let upstreamBody = '';
+    let partialFailure = null;
+    let results = null;
+    try {
+        const r = await fetch(adsUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+        });
+        upstreamStatus = r.status;
+        upstreamBody = await r.text();
+        try {
+            const j = JSON.parse(upstreamBody);
+            partialFailure = j.partialFailureError || null;
+            results = j.results || null;
+        } catch (_) { /* non-JSON */ }
+    } catch (e) {
+        console.log(JSON.stringify({
+            evt: 'gads_upstream_error',
+            event_name: eventName,
+            error: String(e && e.message || e),
+        }));
+        return new Response(JSON.stringify({ ok: false, error: 'upstream_unreachable' }), {
+            status: 502,
+            headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+        });
+    }
+
+    const httpOk = upstreamStatus >= 200 && upstreamStatus < 300;
+    // partialFailureError present means the conversion itself was rejected
+    // even on HTTP 200 (e.g. CLICK_NOT_FOUND when debug is on). Treat as soft
+    // failure for logging; still return 200 so the browser nav isn't blocked.
+    const hasPartialFailure = !!(partialFailure && (
+        partialFailure.code || partialFailure.message || (partialFailure.details && partialFailure.details.length)
+    ));
+
+    console.log(JSON.stringify({
+        evt: 'gads_forwarded',
+        event_name: eventName,
+        internal: clampString(body.internal_name, 64) || null,
+        transaction_id: transactionId,
+        upstream_status: upstreamStatus,
+        had_gclid: !!gclid,
+        had_gbraid: !!gbraid,
+        had_wbraid: !!wbraid,
+        partial_failure: hasPartialFailure,
+        validate_only: !!(payload.validateOnly),
+        partial_failure_message: hasPartialFailure
+            ? clampString(partialFailure.message, 200)
+            : null,
+    }));
+
+    return new Response(JSON.stringify({
+        ok: httpOk && !hasPartialFailure,
+        skipped: null,
+        upstream_status: upstreamStatus,
+        partial_failure: hasPartialFailure,
+        results_count: Array.isArray(results) ? results.length : 0,
+    }), {
+        // Always 200 on a successful upstream round-trip so keepalive fetches
+        // from the landing page don't surface as network errors; ok/partial
+        // flags carry the real outcome.
+        status: httpOk ? 200 : 502,
+        headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+    });
+}
+
 /**
  * Cloudflare Worker entry point
  */
@@ -1134,6 +1507,10 @@ export default {
 
         if (url.pathname === '/capi') {
             return handleCapi(request, env, url);
+        }
+
+        if (url.pathname === '/gads') {
+            return handleGads(request, env, url);
         }
 
         return new Response('Not found', { status: 404 });

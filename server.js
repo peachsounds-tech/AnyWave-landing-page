@@ -30,35 +30,31 @@ const MIME_TYPES = {
   '.pdf': 'application/pdf'
 };
 
-const server = http.createServer((req, res) => {
-  console.log(`${req.method} ${req.url}`);
+function contentTypeFor(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  return MIME_TYPES[ext] || 'application/octet-stream';
+}
 
-  // Remove query string and decode URI
-  let filePath = req.url.split('?')[0];
+function resolveFilePath(urlPath) {
+  let filePath = urlPath.split('?')[0];
   filePath = decodeURIComponent(filePath);
 
-  // Default to index.html for root
   if (filePath === '/') {
     filePath = '/index.html';
   }
 
-  // Resolve full file path
   let fullPath = path.join(ROOT_DIR, filePath);
 
-  // If path is a directory, serve its index.html
   try {
     if (fs.statSync(fullPath).isDirectory()) {
       fullPath = path.join(fullPath, 'index.html');
     }
   } catch (e) {
-    // Not found yet — let the fs.access check handle it
+    // Not found yet — let the exists check handle it
   }
 
-  // Security: prevent directory traversal
   if (!fullPath.startsWith(ROOT_DIR)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
+    return null;
   }
 
   // Extensionless clean URLs: GitHub Pages serves "/download" from
@@ -71,29 +67,105 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // Check if file exists
-  fs.access(fullPath, fs.constants.F_OK, (err) => {
-    if (err) {
+  return fullPath;
+}
+
+function parseRange(rangeHeader, size) {
+  // bytes=start-end | bytes=start- | bytes=-suffix
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader || '');
+  if (!match) return null;
+
+  let start = match[1] === '' ? null : Number(match[1]);
+  let end = match[2] === '' ? null : Number(match[2]);
+
+  if (start === null && end === null) return null;
+
+  if (start === null) {
+    // suffix form: last N bytes
+    const suffix = end;
+    start = Math.max(size - suffix, 0);
+    end = size - 1;
+  } else {
+    if (end === null || end >= size) end = size - 1;
+    if (start >= size) return { unsatisfiable: true };
+  }
+
+  if (start < 0 || end < start) return { unsatisfiable: true };
+  return { start, end };
+}
+
+const server = http.createServer((req, res) => {
+  console.log(`${req.method} ${req.url}`);
+
+  const fullPath = resolveFilePath(req.url || '/');
+  if (!fullPath) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  fs.stat(fullPath, (err, stats) => {
+    if (err || !stats.isFile()) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('404 Not Found');
       return;
     }
 
-    // Read and serve file
-    fs.readFile(fullPath, (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('500 Internal Server Error');
+    const contentType = contentTypeFor(fullPath);
+    const size = stats.size;
+    const rangeHeader = req.headers.range;
+
+    // HEAD / full GET — advertise Accept-Ranges so media elements become seekable.
+    if (!rangeHeader || req.method === 'HEAD') {
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Length': size,
+        'Accept-Ranges': 'bytes',
+        'Last-Modified': stats.mtime.toUTCString()
+      });
+      if (req.method === 'HEAD') {
+        res.end();
         return;
       }
+      fs.createReadStream(fullPath).pipe(res);
+      return;
+    }
 
-      // Determine content type
-      const ext = path.extname(fullPath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const range = parseRange(rangeHeader, size);
+    if (!range) {
+      res.writeHead(416, {
+        'Content-Range': `bytes */${size}`,
+        'Accept-Ranges': 'bytes'
+      });
+      res.end();
+      return;
+    }
+    if (range.unsatisfiable) {
+      res.writeHead(416, {
+        'Content-Range': `bytes */${size}`,
+        'Accept-Ranges': 'bytes'
+      });
+      res.end();
+      return;
+    }
 
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(data);
+    const { start, end } = range;
+    const chunkSize = end - start + 1;
+
+    res.writeHead(206, {
+      'Content-Type': contentType,
+      'Content-Length': chunkSize,
+      'Content-Range': `bytes ${start}-${end}/${size}`,
+      'Accept-Ranges': 'bytes',
+      'Last-Modified': stats.mtime.toUTCString()
     });
+
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    fs.createReadStream(fullPath, { start, end }).pipe(res);
   });
 });
 

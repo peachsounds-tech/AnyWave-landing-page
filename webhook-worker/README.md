@@ -1,10 +1,11 @@
 # BeatCue Webhook Worker
 
-A single Cloudflare Worker with three responsibilities:
+A single Cloudflare Worker with four responsibilities:
 
 1. **Lemon Squeezy → PostHog**: receive purchase webhooks and forward funnel events to PostHog.
 2. **Web ↔ desktop pairing**: bridge the `bcid` + Meta attribution captured on the download page over to the freshly installed desktop app — without tripping Chrome's Local Network Access permission prompt.
 3. **Meta Conversions API proxy**: accept `/capi` events from the desktop app (and optionally the browser) and forward them to Meta's Graph API, keeping the access token off-client.
+4. **Google Ads conversion upload proxy**: accept `/gads` events from the browser and forward them via `uploadClickConversions`, keeping OAuth + developer token off-client.
 
 ## Routes
 
@@ -15,8 +16,9 @@ A single Cloudflare Worker with three responsibilities:
 | `POST` | `/pairings` | download page | store pending pairing payload (CORS-gated) |
 | `POST` | `/pairings/claim` | desktop app | fetch and consume pending pairing |
 | `GET`  | `/pairings/claimed/:bcid` | download page | poll whether app has paired |
-| `POST` | `/capi` | desktop app | forward a single Meta CAPI event (CORS-gated for browsers) |
-| `OPTIONS` | `/pairings*`, `/capi` | browsers | CORS preflight |
+| `POST` | `/capi` | desktop app / browser | forward a single Meta CAPI event (CORS-gated for browsers) |
+| `POST` | `/gads` | browser | forward a single Google Ads click conversion (CORS-gated) |
+| `OPTIONS` | `/pairings*`, `/capi`, `/gads` | browsers | CORS preflight |
 
 ## Lemon Squeezy events tracked
 
@@ -156,6 +158,72 @@ Currently allowed:
 | `AddPaymentInfo` | desktop app | `activation_started` | no |
 | `Subscribe` | desktop app | `activation_finished` | **yes (later)** |
 
+### 5c. Configure Google Ads conversion uploads (`/gads`)
+
+Landing pages dual-fire key conversions: browser `gtag('event','conversion',{transaction_id})` **and** `POST /gads` with the same `transaction_id` as `orderId`, so Google can dedupe. Organic traffic (no `gclid`/`gbraid`/`wbraid`) is soft-skipped by the worker.
+
+#### One-time Google Cloud / Ads setup
+
+1. Create (or reuse) a Google Cloud project → enable **Google Ads API**.
+2. Create an OAuth client (Desktop or Web) → note `client_id` + `client_secret`.
+3. Generate a refresh token for a user that can access the BeatCue Ads account
+   (e.g. via [OAuth Playground](https://developers.google.com/oauthplayground) with
+   scope `https://www.googleapis.com/auth/adwords`, or `gcloud` auth flow).
+4. Apply for / copy a **Developer token** from Google Ads → Tools → API Center.
+5. Note the **Customer ID** (digits only, no dashes). If you authenticate via an
+   MCC, also note the manager **Login Customer ID**.
+6. Look up conversion action resource names (Google Ads → Goals → Conversions,
+   or via the API). Format: `customers/{CUSTOMER_ID}/conversionActions/{ACTION_ID}`.
+
+Map the existing browser conversion labels to those resource names:
+
+| Landing `event_name` | Browser `send_to` | Secret key in `GOOGLE_ADS_CONV_ACTIONS` |
+|---|---|---|
+| `send_to_desktop` | `AW-18317916073/1x2-COL5tNQcEKnv1J5E` | `send_to_desktop` |
+| `trial_download` | `AW-18317916073/H-gBCKTHnNUcEKnv1J5E` | `trial_download` |
+| `checkout_clicked` | (optional — leave unmapped until you create one) | `checkout_clicked` |
+
+```bash
+wrangler secret put GOOGLE_ADS_DEVELOPER_TOKEN
+wrangler secret put GOOGLE_ADS_CLIENT_ID
+wrangler secret put GOOGLE_ADS_CLIENT_SECRET
+wrangler secret put GOOGLE_ADS_REFRESH_TOKEN
+wrangler secret put GOOGLE_ADS_CUSTOMER_ID
+# Optional if using an MCC:
+# wrangler secret put GOOGLE_ADS_LOGIN_CUSTOMER_ID
+
+# JSON map — paste as a single line when prompted:
+wrangler secret put GOOGLE_ADS_CONV_ACTIONS
+# Example value:
+# {"send_to_desktop":"customers/1234567890/conversionActions/111","trial_download":"customers/1234567890/conversionActions/222"}
+
+# Optional dry-run (validateOnly, no attribution):
+# wrangler secret put GOOGLE_ADS_VALIDATE_ONLY   # value: 1
+```
+
+#### Verifying `/gads`
+
+1. Set `GOOGLE_ADS_VALIDATE_ONLY=1` while testing, or use a real click with a fresh `gclid`.
+2. Curl:
+   ```bash
+   WORKER=https://peachsounds-webhook.YOUR_SUBDOMAIN.workers.dev
+   curl -i -X POST "$WORKER/gads" \
+       -H 'content-type: application/json' \
+       -d '{
+         "event_name": "trial_download",
+         "transaction_id": "evt_test_'"$(date +%s)"'",
+         "event_source_url": "https://beatcue.app/download",
+         "internal_name": "smoke_test",
+         "value": 1.0,
+         "currency": "ILS",
+         "user_data": { "gclid": "PASTE_A_REAL_GCLID" }
+       }'
+   ```
+3. Watch `wrangler tail` for `gads_forwarded` / `gads_oauth_error`. In Ads UI,
+   Diagnostics → Uploads (or conversion action diagnostics) should show the hit
+   once validate-only is off and a real click id is used.
+4. Delete validate-only when done: `wrangler secret delete GOOGLE_ADS_VALIDATE_ONLY`.
+
 ### 6. Configure Lemon Squeezy Webhook
 
 1. Go to [Lemon Squeezy Dashboard](https://app.lemonsqueezy.com/settings/webhooks)
@@ -242,6 +310,14 @@ Check PostHog for events with `$lib: cloudflare-worker` property.
 | `META_PIXEL_ID` | Numeric pixel ID (e.g. `708429622326201`) | Required for `/capi` |
 | `META_CAPI_TOKEN` | Conversions API access token | Required for `/capi` |
 | `META_TEST_EVENT_CODE` | Test Events code; events bypass prod attribution while set | Optional, verification only |
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | Ads API developer token | Required for `/gads` |
+| `GOOGLE_ADS_CLIENT_ID` | OAuth client ID | Required for `/gads` |
+| `GOOGLE_ADS_CLIENT_SECRET` | OAuth client secret | Required for `/gads` |
+| `GOOGLE_ADS_REFRESH_TOKEN` | OAuth refresh token | Required for `/gads` |
+| `GOOGLE_ADS_CUSTOMER_ID` | Ads customer ID (no dashes) | Required for `/gads` |
+| `GOOGLE_ADS_LOGIN_CUSTOMER_ID` | MCC manager customer ID | Optional |
+| `GOOGLE_ADS_CONV_ACTIONS` | JSON map `event_name` → conversion action resource | Required for `/gads` |
+| `GOOGLE_ADS_VALIDATE_ONLY` | `"1"` / `"true"` → dry-run uploads | Optional |
 
 ## Local Development
 
