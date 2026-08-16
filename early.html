@@ -5091,7 +5091,7 @@
             // Test checkout for local, live checkout for production
             const checkoutId = isLocalhost 
                 ? '63bb0aac-935d-4274-b374-0d2987314edc'  // Test checkout
-                : '5585ea8e-18e3-4608-ab13-fb9bac5f36c4'; // Live checkout
+                : 'f2c36877-ec5f-45c4-ad3f-d17a9863c3ca'; // Live checkout
             
             console.log(`Using ${isLocalhost ? 'TEST' : 'LIVE'} checkout:`, checkoutId);
             
@@ -5134,9 +5134,9 @@
                     posthog.capture('checkout_started', {
                         ...getBaseEventProps(),
                         plan: 'pro',
-                        price: 3.99,
+                        price: 24.00,
                         currency: 'USD',
-                        billing_period: 'monthly',
+                        billing_period: 'one_time',
                         source: 'early_access_page',
                         posthog_distinct_id: distinctId
                     });

@@ -94,6 +94,7 @@ const CAPI_STANDARD_EVENTS = new Set([
  *  AND outside CAPI_STANDARD_EVENTS gets rejected — a soft schema lock. */
 const CAPI_CUSTOM_EVENTS = new Set([
     'app_launched',
+    'premiere_installed_detected',
     'cut_played',
     'new_project_created',
     'export_intent',
@@ -1137,7 +1138,7 @@ async function handleCapi(request, env, url) {
         fbtrace_id: fbtraceId,
         had_fbp: !!fbp,
         had_fbc: !!fbc,
-        external_id_count: externalIdsHashed.length,
+        external_id_count: externalIds.length,
         had_em: !!emHashed,
         strong_match: hasStrongMatch,
         test_mode: !!env.META_TEST_EVENT_CODE,
@@ -1487,33 +1488,55 @@ async function handleGads(request, env, url) {
  */
 export default {
     async fetch(request, env, ctx) {
-        const url = new URL(request.url);
-
-        if (url.pathname === '/health') {
-            return new Response('OK', { status: 200 });
+        try {
+            return await route(request, env, ctx);
+        } catch (e) {
+            // Without this, any thrown error becomes an opaque Cloudflare 1101
+            // page: no log line, no error name, and a 500 that looks identical
+            // to the endpoint being down. A stray `externalIdsHashed` typo in
+            // the /capi success path hid behind exactly that for weeks —
+            // events were reaching Meta, then the worker died while logging
+            // them, so every client saw a total failure.
+            console.log(JSON.stringify({
+                evt: 'worker_unhandled_error',
+                path: new URL(request.url).pathname,
+                error: String((e && e.stack) || (e && e.message) || e),
+            }));
+            return new Response(JSON.stringify({ ok: false, error: 'internal_error' }), {
+                status: 500,
+                headers: { 'content-type': 'application/json; charset=utf-8' },
+            });
         }
-
-        if (url.pathname === '/webhook/lemonsqueezy') {
-            return handleWebhook(request, env);
-        }
-
-        if (url.pathname === '/pairings' || url.pathname === '/pairings/claim') {
-            return handlePairings(request, env, url);
-        }
-
-        if (url.pathname.startsWith('/pairings/claimed/')) {
-            return handleClaimedStatus(request, env, url);
-        }
-
-        if (url.pathname === '/capi') {
-            return handleCapi(request, env, url);
-        }
-
-        if (url.pathname === '/gads') {
-            return handleGads(request, env, url);
-        }
-
-        return new Response('Not found', { status: 404 });
     }
 };
+
+async function route(request, env, ctx) {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/health') {
+        return new Response('OK', { status: 200 });
+    }
+
+    if (url.pathname === '/webhook/lemonsqueezy') {
+        return handleWebhook(request, env);
+    }
+
+    if (url.pathname === '/pairings' || url.pathname === '/pairings/claim') {
+        return handlePairings(request, env, url);
+    }
+
+    if (url.pathname.startsWith('/pairings/claimed/')) {
+        return handleClaimedStatus(request, env, url);
+    }
+
+    if (url.pathname === '/capi') {
+        return handleCapi(request, env, url);
+    }
+
+    if (url.pathname === '/gads') {
+        return handleGads(request, env, url);
+    }
+
+    return new Response('Not found', { status: 404 });
+}
 

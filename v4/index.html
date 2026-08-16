@@ -13,8 +13,8 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BeatCue – Music Retiming Plugin for Premiere Pro</title>
-    <meta name="description" content="Move the drop. BeatCue fixes the rest. The Premiere Pro plugin that remaps any moment in your music to sync perfectly with your story.">
+    <title>BeatCue – Score the Story. Music Retiming Plugin for Premiere Pro</title>
+    <meta name="description" content="Score the story. BeatCue reshapes any track to follow your edit's emotional arc - and lands every moment inside the shot. Premiere Pro plugin for macOS & Windows.">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,13 +62,13 @@
     
     // Helper: Read or mint _fbp synchronously and persist it as a first-party
     // cookie. fbevents.js loads async (line ~16) and writes _fbp itself only
-    // after fbq('init') runs — but we capture the cookie value into globals on
+    // after fbq('init') runs - but we capture the cookie value into globals on
     // the very next line and again at CTA-click time, both potentially BEFORE
     // the Pixel has had a chance to set the cookie. For first-time visitors
     // arriving from a Meta ad, that race made fbp ship as `null` to the worker
-    // (and from there to CAPI), which collapsed the Browser-ID match rate to
-    // ~4–10% in Events Manager while everything else (IP/UA/external_id) was
-    // at 100%. Pre-creating the cookie ourselves in Meta's documented format
+    // (and from there to CAPI), which collapsed the Browser-ID match rate in
+    // Events Manager while everything else (IP/UA/external_id) was at 100%.
+    // Pre-creating the cookie ourselves in Meta's documented format
     // (`fb.<subdomainIndex>.<creationTimeMs>.<randomNumber>`) closes the race
     // and is what the Pixel itself would have written; when fbevents.js later
     // initializes it sees the existing cookie and reuses the same value, so
@@ -93,12 +93,12 @@
             } else {
                 document.cookie = attrs;
             }
-        } catch (e) { /* cookie write may fail under strict policies — fbp still returned in-memory */ }
+        } catch (e) { /* cookie write may fail under strict policies - fbp still returned in-memory */ }
         return fbp;
     }
 
     // BeatCue browser ID (bcid): mint before Pixel init so advanced matching
-    // can pass external_id. Idempotent — safe to call again from PostHog block.
+    // can pass external_id. Idempotent - safe to call again from PostHog block.
     function getOrCreateBcid() {
         var VALID = /^bc_[A-Za-z0-9-]{8,64}$/;
         var mint = function() {
@@ -472,7 +472,7 @@
         !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="Ii init Di qi Sr Bi Zi Pi capture calculateEventProperties Yi register register_once register_for_session unregister unregister_for_session Xi getFeatureFlag getFeatureFlagPayload getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Ji identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty Wi Vi createPersonProfile setInternalOrTestUser Gi Fi tn opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing $i debug Tr Ui getPageViewId captureTraceFeedback captureTraceMetric Ri".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
 
         // bcid minted in Meta Pixel block above; re-read for PostHog bootstrap.
-        // NOTE: must use `var` (not `const`/`let`) — the Meta Pixel block already
+        // NOTE: must use `var` (not `const`/`let`) - the Meta Pixel block already
         // declared `var cueBcid` at script top-level. `const` here would clash
         // with the existing global lexical binding and throw a parse-time
         // SyntaxError that silently drops this whole <script> tag, taking
@@ -1477,6 +1477,149 @@
             border-radius: 6px;
         }
         
+        /* ============================================
+           THE SEARCH - perfect track, wrong shape
+        ============================================ */
+        .search-section {
+            padding: var(--section-pad-y-tight) var(--section-pad-x);
+            background: var(--bg-secondary);
+            text-align: center;
+        }
+
+        .search-container {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        .search-section h2 {
+            line-height: 1.15;
+        }
+
+        .search-orange {
+            color: var(--peach-orange);
+        }
+
+        .search-blue {
+            color: var(--wave-blue);
+        }
+
+        .search-body {
+            color: var(--text-secondary);
+            font-size: 1.15rem;
+            line-height: 1.6;
+            max-width: 700px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .search-payoff {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.55;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* ============================================
+           THE COST - what "close enough" costs a pro
+        ============================================ */
+        .cost-section {
+            padding: var(--section-pad-y) var(--section-pad-x);
+            background: var(--bg-card-secondary);
+            text-align: center;
+        }
+
+        .cost-container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .cost-eyebrow {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.78rem;
+            font-weight: 500;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--peach-orange);
+            opacity: 0.9;
+            margin: 0 0 0.75rem;
+        }
+
+        .cost-h2 {
+            color: var(--text-on-card);
+            max-width: 760px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.15;
+        }
+
+        .cost-orange {
+            color: var(--peach-orange);
+        }
+
+        .cost-blue {
+            color: var(--wave-blue-light);
+        }
+
+        .cost-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: clamp(2rem, 4vw, 3rem) 0;
+            text-align: left;
+        }
+
+        .cost-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.75rem;
+        }
+
+        .cost-card-label {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.72rem;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--peach-orange);
+            margin: 0 0 0.75rem;
+        }
+
+        .cost-card h3 {
+            color: var(--text-on-card);
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 0.75rem;
+        }
+
+        .cost-card p:last-child {
+            color: var(--text-on-card-secondary);
+            font-size: 0.98rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .cost-card p strong {
+            color: var(--text-on-card);
+            font-weight: 600;
+        }
+
+        .cost-payoff {
+            color: var(--text-on-card);
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.55;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 860px) {
+            .cost-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ============================================
            HOW IT WORKS
         ============================================ */
@@ -4612,7 +4755,7 @@
         }
 
         /* ============================================
-           BEFORE / AFTER — "The moment finally lands"
+           BEFORE / AFTER - "The moment finally lands"
            Cinematic auto-cycle. The hierarchy is:
              1. The scene (a story moment)
              2. The emotional caption ("The leap finally lands")
@@ -4742,7 +4885,7 @@
             transition: opacity 0.18s ease-out;
         }
         .ba-ui-video.is-active { opacity: 1; }
-        /* Hairline divider between scene and UI — vertical when side-by-side. */
+        /* Hairline divider between scene and UI - vertical when side-by-side. */
         .ba-scene::after {
             content: '';
             position: absolute;
@@ -4756,7 +4899,7 @@
             z-index: 2;
         }
 
-        /* Phase label — small, top-left of the scene. Colour-codes the
+        /* Phase label - small, top-left of the scene. Colour-codes the
            current side so even a glance tells you what's playing. */
         .ba-phase {
             position: absolute;
@@ -4796,13 +4939,13 @@
         }
         .ba-phase-text { line-height: 1; }
 
-        /* Ghost A/B toggle — tiny, bottom-right of the scene.
+        /* Ghost A/B toggle - tiny, bottom-right of the scene.
            For power users only; auto-cycle does the work otherwise. */
         .ba-ab {
             position: absolute;
             bottom: 14px;
             right: 14px;
-            z-index: 4;
+            z-index: 7; /* above the seek bar so Before/After stay clickable */
             display: inline-flex;
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.12);
@@ -4839,7 +4982,7 @@
             color: #fff;
         }
 
-        /* The emotional caption — the hierarchy hero, overlaid on the
+        /* The emotional caption - the hierarchy hero, overlaid on the
            bottom of the scene. Big, soft, fades on side change. */
         .ba-caption {
             position: absolute;
@@ -4912,22 +5055,80 @@
             text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
         }
 
-        /* Progress bar pinned to the bottom edge */
+        /* Seekable progress bar pinned to the bottom edge.
+           Tall hit area (14px) with a thin visual track so scrubbing is easy
+           without crowding the caption / A/B controls. */
         .ba-progress {
             position: absolute;
             left: 0; right: 0; bottom: 0;
+            height: 14px;
+            z-index: 6;
+            cursor: pointer;
+            touch-action: none;
+            /* Expand the visual track via a pseudo so the hit target stays tall */
+            background: transparent;
+        }
+        .ba-progress::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
             height: 3px;
-            background: rgba(255, 255, 255, 0.08);
-            z-index: 5;
+            background: rgba(255, 255, 255, 0.12);
+            transition: height 0.15s ease, background 0.15s ease;
+        }
+        .ba-progress:hover::before,
+        .ba-progress.is-seeking::before {
+            height: 5px;
+            background: rgba(255, 255, 255, 0.22);
         }
         .ba-progress-fill {
-            height: 100%;
+            position: absolute;
+            left: 0; bottom: 0;
+            height: 3px;
             width: 0%;
             background: linear-gradient(90deg, var(--peach-orange) 0%, var(--wave-blue) 100%);
-            transition: width 0.08s linear;
+            transition: width 0.08s linear, height 0.15s ease;
+            pointer-events: none;
+        }
+        .ba-progress:hover .ba-progress-fill,
+        .ba-progress.is-seeking .ba-progress-fill {
+            height: 5px;
+        }
+        .ba-progress.is-seeking .ba-progress-fill {
+            transition: height 0.15s ease; /* drop width transition while scrubbing */
+        }
+        .ba-progress-thumb {
+            position: absolute;
+            bottom: 1px;
+            left: 0;
+            width: 12px;
+            height: 12px;
+            margin-left: -6px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.55), 0 2px 8px rgba(0, 0, 0, 0.45);
+            opacity: 0;
+            transform: scale(0.6);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .ba-progress:hover .ba-progress-thumb,
+        .ba-progress.is-seeking .ba-progress-thumb,
+        .ba-progress:focus-visible .ba-progress-thumb {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .ba-progress:focus-visible {
+            outline: none;
+        }
+        .ba-progress:focus-visible::before {
+            height: 5px;
+            background: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.55);
         }
 
-        /* Scenario dots — three subtle pill chips below the stage.
+        /* Scenario dots - three subtle pill chips below the stage.
            Just enough nav to jump between moments; doesn't dominate. */
         .ba-scenarios {
             display: flex;
@@ -4974,7 +5175,7 @@
         }
         .ba-dot-label { line-height: 1; }
 
-        /* CTA — single strong call after the emotional realisation */
+        /* CTA - single strong call after the emotional realisation */
         .ba-cta {
             display: flex;
             flex-direction: column;
@@ -4996,12 +5197,12 @@
         }
 
         /* Tablet / phone: stack the two panels vertically. Each panel
-           keeps its native 16:9 — composed aspect becomes 16:18. */
+           keeps its native 16:9 - composed aspect becomes 16:18. */
         @media (max-width: 720px) {
             .ba-stage {
                 border-radius: 14px;
                 aspect-ratio: 16 / 18;
-                /* In stacked mode height matters again — cap via vh budget. */
+                /* In stacked mode height matters again - cap via vh budget. */
                 max-width: min(560px, max(280px, calc((100vh - 400px) * 16 / 18)));
                 grid-template-columns: 1fr;
                 grid-template-rows: 1fr 1fr;
@@ -5114,9 +5315,9 @@
         </div>
         <div class="hero-content">
             <span class="hero-badge"><svg class="laurel laurel-left" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c-4-3-7-7-7-12C5 6 8 2 12 2"/><path d="M9 7c-2 1-3.5 3-3.5 5.5"/><path d="M10 12c-1.5 1-2.5 2.5-2.5 4.5"/></svg> Made for video editors <svg class="laurel laurel-right" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4-3 7-7 7-12 0-4-3-8-7-8"/><path d="M15 7c2 1 3.5 3 3.5 5.5"/><path d="M14 12c1.5 1 2.5 2.5 2.5 4.5"/></svg></span>
-            <p class="hero-tagline">Perfect <span class="blue">music.</span> Wrong <span class="orange">timings?</span></p>
+            <p class="hero-tagline"><span class="orange">Score</span> the <span class="blue">story.</span></p>
             <p class="hero-subtitle">
-                Move the drop. BeatCue rebuilds the rest.
+                BeatCue reshapes any track to follow your edit's emotional arc <br> and lands every moment inside the shot.
             </p>
             
             <div class="hero-ctas" style="justify-content: center;">
@@ -5143,13 +5344,59 @@
         </div>
     </section>
 
-    <!-- Hear the Difference — Before / After Demo -->
+    <!-- The Search - the perfect track that doesn't fit -->
+    <section class="search-section" id="the-search">
+        <div class="search-container">
+            <p class="section-label">The search</p>
+            <h2>Three hours of scrolling.<br>One perfect track. <span class="search-orange">Wrong shape.</span></h2>
+            <p class="search-body">
+                The build peaks too early. The drop misses your moment. It&rsquo;s 40 seconds too long.
+                So you keep scrolling - past the track that was <em>right</em>.
+            </p>
+            <p class="search-payoff">
+                With BeatCue, if it&rsquo;s the right track, it fits.<br>
+                <span class="search-blue">Pick for the feeling. The timing is yours to shape.</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- The Cost - what "close enough" costs a professional -->
+    <section class="cost-section" id="the-cost">
+        <div class="cost-container">
+            <p class="cost-eyebrow">What &ldquo;close enough&rdquo; costs</p>
+            <h2 class="cost-h2">Close enough makes an expensive edit feel <span class="cost-orange">cheap</span>.</h2>
+
+            <div class="cost-grid">
+                <div class="cost-card">
+                    <p class="cost-card-label">The note</p>
+                    <h3>&ldquo;Something&rsquo;s not landing.&rdquo;</h3>
+                    <p>The client can&rsquo;t name it. You can: the music isn&rsquo;t <strong>feeling the scene</strong>. It swells when the story is still holding its breath - and <strong>no amount of trimming fixes that</strong>.</p>
+                </div>
+                <div class="cost-card">
+                    <p class="cost-card-label">The spiral</p>
+                    <h3>Round three. Still &ldquo;almost.&rdquo;</h3>
+                    <p>Every vague note buys another revision - <strong>unpaid hours</strong> chasing a track that <strong>never felt what the scene feels</strong>.</p>
+                </div>
+                <div class="cost-card">
+                    <p class="cost-card-label">The hours</p>
+                    <h3>An evening of music surgery.</h3>
+                    <p>Cutting, looping, crossfading, stretching. <strong>Nobody bills for it.</strong> Nobody sees it. And the scene still <strong>doesn&rsquo;t feel right</strong>.</p>
+                </div>
+            </div>
+
+            <p class="cost-payoff">
+                When the music lands on the first pass, the client says <span class="cost-blue">yes on round one</span> - and the hours stay billable.
+            </p>
+        </div>
+    </section>
+
+    <!-- Hear the Difference - Before / After Demo -->
     <section class="before-after" id="hear-the-difference">
         <div class="ba-container">
             <header class="ba-headline">
-                <p class="ba-eyebrow">When the music lands</p>
+                <p class="ba-eyebrow">Hear the difference</p>
                 <h2 class="ba-h2">The moment finally <span class="ba-blue">lands</span>.</h2>
-                <p class="ba-sub">Same footage. Same track. Different timing.</p>
+                <p class="ba-sub">Same footage. Same track. We didn&rsquo;t move the picture - we moved the music.</p>
             </header>
 
             <div class="ba-stage" id="baStage" data-side="before" data-pair="jump">
@@ -5190,8 +5437,16 @@
                     <span class="ba-overlay-label">Play with sound</span>
                 </button>
 
-                <div class="ba-progress" aria-hidden="true">
+                <div class="ba-progress" id="baProgress"
+                     role="slider"
+                     tabindex="0"
+                     aria-label="Seek playback"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-valuenow="0"
+                     aria-valuetext="0 seconds">
                     <div class="ba-progress-fill" id="baProgressFill"></div>
+                    <div class="ba-progress-thumb" id="baProgressThumb" aria-hidden="true"></div>
                 </div>
             </div>
 
@@ -5252,7 +5507,7 @@
                 <p class="section-label"><img src="/premiere-pro.png" alt="Adobe Premiere Pro" class="pr-inline-icon">Direct Premiere Pro integration</p>
                 <h2>Right inside your edit.</h2>
                 <p class="section-subtitle">
-                    BeatCue connects directly to Adobe Premiere Pro. Retime your music in BeatCue and hear it land in your sequence — no exporting, no re-importing, no round trips.
+                    BeatCue connects directly to Adobe Premiere Pro. Retime your music in BeatCue and hear it land in your sequence - no exporting, no re-importing, no round trips. An evening of music surgery becomes a two-minute step.
                 </p>
                 <ul class="pr-integration-points">
                     <li><span class="point-marker">✓</span>Syncs with your Premiere timeline in real time</li>
@@ -5276,9 +5531,9 @@
         <div class="features-container">
             <div class="section-header">
                 <p class="section-label">Why Premiere Pro editors use Cue</p>
-                <h2>Cue. Shape. Land.</h2>
+                <h2>The score follows the story.</h2>
                 <p class="section-subtitle">
-                    BeatCue is a music retiming plugin for <img src="/premiere-pro.png" alt="" class="pr-inline-icon">Adobe Premiere Pro. Drop in a track, move the moments that matter, and BeatCue rebuilds the music around your edits in real time — right alongside your Premiere timeline.
+                    BeatCue is a music retiming plugin for <img src="/premiere-pro.png" alt="" class="pr-inline-icon">Adobe Premiere Pro. Pin the moments that matter, and BeatCue reshapes everything between them - groove intact, in real time, right alongside your Premiere timeline.
                 </p>
             </div>
             
@@ -5329,11 +5584,11 @@
                     <img src="../creator.jpg" alt="Sarel Duanis, creator of BeatCue" loading="lazy">
                 </div>
                 <div class="creator-letter">
-                    <p>I've spent seven years as an engineer with ears — building the technology behind video editors, thinking in waveforms as much as in code. Close enough to hear what editors were really asking for when they stretched a clip or trimmed a bar. They weren't adjusting timing. They were chasing a feeling.</p>
-                    <p>BeatCue is my first indie product, carrying one conviction I've held the whole time: that the moment a drop lands, a build releases, or a peak finally breaks — that moment belongs to the editor.</p>
+                    <p>I've spent seven years as an engineer with ears - building the technology behind video editors, thinking in waveforms as much as in code. Close enough to hear what editors were really asking for when they stretched a clip or trimmed a bar. They weren't adjusting timing. They were chasing a feeling.</p>
+                    <p>BeatCue is my first indie product, carrying one conviction I've held the whole time: that the moment a drop lands, a build releases, or a peak finally breaks - that moment belongs to the editor.</p>
                     <p>I built BeatCue to give it back to them.</p>
                     <div class="creator-signature">
-                        <span class="sig-dash">— <span class="sig-name">Sarel Duanis</span></span>
+                        <span class="sig-dash">- <span class="sig-name">Sarel Duanis</span></span>
                         <span class="sig-role">Creator of BeatCue</span>
                     </div>
                 </div>
@@ -5343,7 +5598,7 @@
 
     <!-- Social Proof -->
     <section class="quotes-section">
-        <p class="section-label">BeatCue is built for</p>
+        <p class="section-label">Get the &ldquo;yes&rdquo; on round one</p>
         <div class="audience-tags">
             <span class="audience-tag">Film Editors</span>
             <span class="audience-tag">Commercial Editors</span>
@@ -5354,7 +5609,7 @@
 
         <div class="use-cases">
             <div class="use-case">
-                <p class="scenario">"The client moved the reveal up by 8 seconds. I dragged one handle in BeatCue and the build landed perfectly — no re-editing the whole track."</p>
+                <p class="scenario">"The client moved the reveal up by 8 seconds. I dragged one handle in BeatCue and the build landed perfectly - no re-editing the whole track."</p>
                 <p class="context">Product launch video</p>
             </div>
             <div class="use-case">
@@ -5372,7 +5627,7 @@
     <section class="cta-section" id="pricing">
         <div class="cta-container">
             <h2 class="cta-title">Get BeatCue</h2>
-            <span class="cta-label">Stop editing music, start moving moments</span>
+            <span class="cta-label">The difference between a cut and a film is the score. Now it&rsquo;s yours to shape.</span>
             <div id="ctaDesktop">
                 <div class="pricing-cards">
                     <div class="pricing-card pricing-card--primary">
@@ -5473,7 +5728,7 @@
         }
 
         // ============================================
-        // BEFORE / AFTER — "The moment finally lands"
+        // BEFORE / AFTER - "The moment finally lands"
         //
         // GUIDED AUTO-CYCLE:
         //   For each scenario: full BEFORE → full AFTER → advance to next.
@@ -5486,6 +5741,11 @@
         //   has volume; the other is muted-but-playing so the timeline
         //   stays shared. The ghost A/B toggle just swaps volume + UI
         //   opacity (no seek) for instant manual comparison.
+        //
+        // SEEKING:
+        //   The progress bar is scrubbable (click / drag / keyboard). Seek
+        //   sets currentTime on all five media elements in lockstep so the
+        //   scene, UI videos, and both audio sides stay aligned.
         //
         // CYCLE BOUNDARY:
         //   audio.ended on the active side is the canonical "phase over"
@@ -5508,14 +5768,16 @@
             const overlay = document.getElementById('baOverlay');
             const sceneArea = document.getElementById('baScene');
             const uiArea = document.getElementById('baUi');
+            const progressEl = document.getElementById('baProgress');
             const progressFill = document.getElementById('baProgressFill');
+            const progressThumb = document.getElementById('baProgressThumb');
             const phase = document.getElementById('baPhase');
             const phaseText = phase && phase.querySelector('.ba-phase-text');
             const captionText = document.getElementById('baCaptionText');
             const abBtns = Array.from(document.querySelectorAll('.ba-ab-btn'));
             const dotBtns = Array.from(document.querySelectorAll('.ba-dot'));
 
-            // Build the scenario list in DOM order — that's the cycle order.
+            // Build the scenario list in DOM order - that's the cycle order.
             const scenarioOrder = dotBtns.map((b) => b.dataset.pair);
             const pairs = {};
             dotBtns.forEach((btn) => {
@@ -5538,8 +5800,15 @@
                 userPaused: false, // true when the viewer explicitly paused playback
                 playing: false,
                 cycling: false,    // gates re-entrancy on the ended boundary
+                seeking: false,    // true while the user is scrubbing the progress bar
+                resumeAfterSeek: false, // restore playback when the scrub ends
+                seekTime: 0,       // last scrub target (master-clock seconds)
                 rafId: null,
             };
+
+            function allMedia() {
+                return [sceneVideo, uiVideos.before, uiVideos.after, audios.before, audios.after];
+            }
 
             // ---------- helpers ----------
             function setElementSrc(el, src) {
@@ -5652,7 +5921,7 @@
                 stopProgressLoop();
             }
 
-            // Reset every clock to 0 and play — used at cycle boundaries and on
+            // Reset every clock to 0 and play - used at cycle boundaries and on
             // chapter/scenario change. Keeps the five elements in lockstep.
             function restartAndPlay() {
                 [sceneVideo, uiVideos.before, uiVideos.after, audios.before, audios.after].forEach((el) => {
@@ -5662,15 +5931,28 @@
                 playAll();
             }
 
+            function mediaDuration() {
+                const a = activeAudio();
+                return a.duration || sceneVideo.duration || 0;
+            }
+
+            function updateProgressUI(t, dur) {
+                const duration = (typeof dur === 'number' && dur > 0) ? dur : mediaDuration();
+                const time = typeof t === 'number' ? t : (activeAudio().currentTime || 0);
+                const pct = duration > 0 ? Math.min(100, Math.max(0, (time / duration) * 100)) : 0;
+                if (progressFill) progressFill.style.width = pct + '%';
+                if (progressThumb) progressThumb.style.left = pct + '%';
+                if (progressEl) {
+                    progressEl.setAttribute('aria-valuenow', String(Math.round(pct)));
+                    progressEl.setAttribute('aria-valuetext', Math.floor(time) + ' seconds');
+                }
+            }
+
             function startProgressLoop() {
                 stopProgressLoop();
                 const tick = () => {
                     if (!state.playing) return;
-                    const a = activeAudio();
-                    const dur = a.duration || sceneVideo.duration || 0;
-                    const t   = a.currentTime || 0;
-                    const pct = dur > 0 ? Math.min(100, (t / dur) * 100) : 0;
-                    progressFill.style.width = pct + '%';
+                    if (!state.seeking) updateProgressUI();
                     state.rafId = requestAnimationFrame(tick);
                 };
                 state.rafId = requestAnimationFrame(tick);
@@ -5678,6 +5960,41 @@
             function stopProgressLoop() {
                 if (state.rafId) cancelAnimationFrame(state.rafId);
                 state.rafId = null;
+            }
+
+            // Seek every media element to the same master-clock time so scene /
+            // UI / audio stay in lockstep. Must be called while paused for
+            // reliable frame updates (browsers cancel in-flight seeks on
+            // playing elements when currentTime is spammed during a drag).
+            function seekAllTo(time) {
+                const dur = mediaDuration();
+                if (!(dur > 0) || !isFinite(time)) return 0;
+                const clamped = Math.max(0, Math.min(Math.max(dur - 0.05, 0), time));
+                state.seekTime = clamped;
+                allMedia().forEach((el) => {
+                    if (!el || el.readyState < 1) return; // need HAVE_METADATA
+                    const elDur = el.duration;
+                    let t = clamped;
+                    if (elDur && isFinite(elDur) && elDur > 0) {
+                        // Looped videos may be shorter than the audio master clock
+                        if (el.loop && clamped >= elDur) t = clamped % elDur;
+                        else t = Math.min(clamped, Math.max(elDur - 0.05, 0));
+                    }
+                    try { el.currentTime = t; } catch (err) {}
+                });
+                updateProgressUI(clamped, dur);
+                return clamped;
+            }
+
+            function seekFromClientX(clientX) {
+                if (!progressEl) return 0;
+                const dur = mediaDuration();
+                if (!(dur > 0)) return 0;
+                const rect = progressEl.getBoundingClientRect();
+                const ratio = rect.width > 0
+                    ? Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+                    : 0;
+                return seekAllTo(ratio * dur);
             }
 
             // ---------- auto-cycle: full BEFORE → full AFTER → next scenario ----------
@@ -5728,7 +6045,7 @@
             });
 
             // ---------- manual interactions ----------
-            // Ghost A/B flip — no seek, just swap volume + opacity.
+            // Ghost A/B flip - no seek, just swap volume + opacity.
             function applyManualSide(side, source) {
                 if (side === state.side) return;
                 const fromSide = state.side;
@@ -5776,14 +6093,18 @@
                 if (a.readyState >= 2) start(); else a.addEventListener('canplay', start);
             }
 
-            function unlockAudioFirstTime(source) {
+            // opts.deferPlayback: unlock + unmute without restarting at 0
+            // (used when the unlock gesture is a scrub that will seek + resume).
+            function unlockAudioFirstTime(source, opts) {
                 if (state.unlocked) return;
                 state.unlocked = true;
                 state.userPaused = false;
                 stage.classList.add('is-unlocked');
                 overlay.classList.add('is-hidden');
                 applyAudioLevels();
-                restartAndPlay();
+                if (!(opts && opts.deferPlayback)) {
+                    restartAndPlay();
+                }
                 trackLandingInteraction('before_after_play_started', {
                     ...baContext(),
                     source: source || 'overlay'
@@ -5844,7 +6165,88 @@
                 });
             });
 
-            // Pause when the section scrolls out of view — saves bandwidth and
+            // ---------- seekable progress bar ----------
+            if (progressEl) {
+                const endSeek = (e) => {
+                    if (!state.seeking) return;
+                    state.seeking = false;
+                    progressEl.classList.remove('is-seeking');
+                    if (e && e.pointerId != null) {
+                        try { progressEl.releasePointerCapture(e.pointerId); } catch (err) {}
+                    }
+                    // Re-assert the final time — rapid drag seeks get cancelled by
+                    // the browser; one last paused seek makes the frame stick.
+                    seekAllTo(state.seekTime);
+                    const shouldResume = state.resumeAfterSeek && !state.userPaused;
+                    state.resumeAfterSeek = false;
+                    if (shouldResume) {
+                        playAll();
+                    } else {
+                        updateProgressUI(state.seekTime);
+                    }
+                    trackLandingInteraction('before_after_seeked', {
+                        ...baContext(),
+                        position_seconds: Math.round((state.seekTime || 0) * 10) / 10,
+                        source: 'progress_bar'
+                    });
+                };
+
+                progressEl.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Don't restart at 0 — scrub will seek to the pointer position
+                    if (!state.unlocked) {
+                        unlockAudioFirstTime('progress_bar', { deferPlayback: true });
+                    }
+                    // Pause first so each currentTime update paints a frame
+                    state.resumeAfterSeek = !state.userPaused;
+                    state.seeking = true;
+                    progressEl.classList.add('is-seeking');
+                    pauseAll();
+                    try { progressEl.setPointerCapture(e.pointerId); } catch (err) {}
+                    seekFromClientX(e.clientX);
+                });
+
+                // With setPointerCapture, move/up are retargeted to this element
+                progressEl.addEventListener('pointermove', (e) => {
+                    if (!state.seeking) return;
+                    seekFromClientX(e.clientX);
+                });
+                progressEl.addEventListener('pointerup', endSeek);
+                progressEl.addEventListener('pointercancel', endSeek);
+
+                // Keyboard: arrows nudge ±2s / ±5s with Shift; Home/End jump ends
+                progressEl.addEventListener('keydown', (e) => {
+                    const dur = mediaDuration();
+                    if (!(dur > 0)) return;
+                    const t = state.seeking ? state.seekTime : (activeAudio().currentTime || 0);
+                    let next = null;
+                    const step = e.shiftKey ? 5 : 2;
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = t + step;
+                    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = t - step;
+                    else if (e.key === 'Home') next = 0;
+                    else if (e.key === 'End') next = dur;
+                    if (next === null) return;
+                    e.preventDefault();
+                    if (!state.unlocked) {
+                        unlockAudioFirstTime('progress_bar', { deferPlayback: true });
+                    }
+                    const wasPlaying = state.playing;
+                    if (wasPlaying) pauseAll();
+                    seekAllTo(next);
+                    if (wasPlaying || !state.userPaused) playAll();
+                    trackLandingInteraction('before_after_seeked', {
+                        ...baContext(),
+                        position_seconds: Math.round((state.seekTime || 0) * 10) / 10,
+                        source: 'keyboard'
+                    });
+                });
+
+                // Clicking the bar should never toggle play/pause on the stage
+                progressEl.addEventListener('click', (e) => e.stopPropagation());
+            }
+
+            // Pause when the section scrolls out of view - saves bandwidth and
             // frees audio focus for the rest of the page.
             const sectionEl = document.getElementById('hear-the-difference');
             if (sectionEl && typeof IntersectionObserver !== 'undefined') {
@@ -6148,7 +6550,7 @@
             // Only include person properties if user has consented (full mode)
             if (posthogFullyInitialized) {
                 // Set person properties via $set_once (first-touch attribution;
-                // also set on load via identifyFirstTouchPerson — keep in sync with /go)
+                // also set on load via identifyFirstTouchPerson - keep in sync with /go)
                 const personProps = {
                     first_seen_flow: 'landing_v2',
                     first_seen_at: new Date().toISOString(),
@@ -6243,15 +6645,6 @@
                     currency: 'USD',
                     content_name: 'BeatCue',
                     platform: 'windows'
-                });
-            }
-            // Google Ads: fire on the landing-page Windows CTA (these users
-            // never hit download.html — they go straight to the Store).
-            if (typeof gtag === 'function' && !window.__cue_gads_download_fired) {
-                window.__cue_gads_download_fired = true;
-                gtag('event', 'trial_download_started', {
-                    platform: 'windows',
-                    source: 'landing_v2_to_store'
                 });
             }
             if (typeof posthog !== 'undefined' && posthog.capture) {
@@ -6630,11 +7023,11 @@
 
             // Mobile / non-desktop visitors: instead of linking to the download
             // page (old 2-hop flow), turn the CTAs into a "share download link"
-            // hand-off so they continue on their computer — 1 hop.
+            // hand-off so they continue on their computer - 1 hop.
             const useMobileHandoff = forceNonDesktop || (!forcePlatform && !isDesktop);
 
             // Attach identity-preserving click handler to all download buttons
-            // (desktop only — on mobile these become the share hand-off CTA).
+            // (desktop only - on mobile these become the share hand-off CTA).
             if (!blockWindowsDownload && !useMobileHandoff) {
                 if (heroDownloadBtn) heroDownloadBtn.addEventListener('click', trackTrialDownloadClick);
                 if (pricingDownloadBtn) pricingDownloadBtn.addEventListener('click', trackTrialDownloadClick);
@@ -6850,7 +7243,7 @@
                     ? crypto.randomUUID()
                     : String(Date.now()) + Math.random().toString(36).slice(2));
 
-                // Pixel side — pass eventID so CAPI can dedupe.
+                // Pixel side - pass eventID so CAPI can dedupe.
                 if (typeof fbq === 'function') {
                     fbq('trackCustom', 'checkout_clicked', {
                         content_name: 'BeatCue Pro',
@@ -6859,7 +7252,7 @@
                     }, { eventID: eventID });
                 }
 
-                // CAPI side via worker — keepalive so it survives the new-tab nav.
+                // CAPI side via worker - keepalive so it survives the new-tab nav.
                 try {
                     // Read live cookies first; fall back to page-load globals.
                     var freshFbp = getCookie('_fbp') || window.__cue_fbp || null;
