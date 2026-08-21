@@ -8,6 +8,8 @@
  *      tripping Chrome's Local Network Access prompt.
  *   3. Meta Conversions API proxy (`/capi`) and Google Ads click-conversion
  *      upload proxy (`/gads`) so browser + desktop keep tokens off-client.
+ *   4. Free-tier song quota (`/quota/*`): the authoritative ledger of which
+ *      songs each install owns and how many it may still claim this period.
  *
  * Deploy to Cloudflare Workers via `wrangler deploy`.
  */
@@ -62,6 +64,59 @@ const PAIRINGS_MAX_BODY_BYTES = 4 * 1024;
 /** bcid shape contract — must match the page-side mint and the desktop
  *  applyPairing() validator. */
 const BCID_RE = /^bc_[A-Za-z0-9-]{8,64}$/;
+
+// ─── Free-tier quota constants ────────────────────────────────────────────────
+
+/** Fallback when `quota_config.default_limit` is missing or unparseable.
+ *  Deliberately a real number rather than 0: a bad config write should degrade
+ *  to "the limit we shipped" and not to "nobody on the free tier can work". */
+const QUOTA_FALLBACK_LIMIT = 5;
+
+/** Sanity bounds applied to any limit we resolve, from config or override.
+ *  Stops a fat-fingered UPDATE from either locking out the free tier or
+ *  handing out effectively unlimited songs. */
+const QUOTA_MIN_LIMIT = 1;
+const QUOTA_MAX_LIMIT = 1000;
+
+/** Body ceiling for /quota/*. Larger than the pairing ceiling because the
+ *  migration seed carries one 64-char hash per song the user already owns;
+ *  64 KB is ~900 songs, far beyond anything a real free-tier install has. */
+const QUOTA_MAX_BODY_BYTES = 64 * 1024;
+
+/** How many owned hashes a state/claim response returns. The client uses these
+ *  to populate its offline cache, so the cap is really "how many songs can a
+ *  user open without being online". Newest first. */
+const QUOTA_OWNED_PAGE_SIZE = 500;
+
+/** Hashes accepted per seed call. Anything beyond this is almost certainly not
+ *  a real free-tier history. */
+const QUOTA_MAX_SEED_HASHES = 200;
+
+/** device_id / song_hash wire shape: 64 lowercase hex chars (SHA-256 or an
+ *  HMAC-SHA256 of the machine fingerprint). Enforced so a malformed or
+ *  hostile client can't create junk account rows with arbitrary keys. */
+const QUOTA_ID_RE = /^[0-9a-f]{64}$/;
+
+// ─── Entitlement token constants ──────────────────────────────────────────────
+
+/** Key id stamped into every token header. Must match ENTITLEMENT_KEY_ID in
+ *  the client's LicenseConfig.h. Bump alongside a key rotation. */
+const ENTITLEMENT_KEY_ID = 'e1';
+
+/** How long a signed token is valid. This is the offline window: a licensed
+ *  user keeps working this long with no network before a re-sync is required,
+ *  and it bounds how long a revoked or refunded licence keeps functioning.
+ *  Mirrors ENTITLEMENT_TOKEN_TTL_MS on the client (display only there; the
+ *  server's `exp` is what's enforced). */
+const ENTITLEMENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** machine_id wire shape: 32 lowercase hex chars (MachineId::generate). Empty
+ *  is allowed for the free tier, which is keyed on device_id alone. */
+const MACHINE_ID_RE = /^[0-9a-f]{32}$/;
+
+/** nonce wire shape: an opaque client-generated string echoed into the token so
+ *  a captured response can't be replayed for a different request. Kept short. */
+const NONCE_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 // ─── Meta Conversions API constants ───────────────────────────────────────────
 
@@ -177,9 +232,27 @@ async function verifySignature(payload, signature, secret) {
 }
 
 /**
- * Send event to PostHog
+ * Send event to PostHog.
+ *
+ * `clientIp` is the *end user's* IP (Cloudflare's `cf-connecting-ip`), not the
+ * worker's. PostHog geolocates server-side events from the request IP, which
+ * for a worker-originated capture is a Cloudflare data-centre IP — so without
+ * this the `$geoip_*` properties describe Cloudflare's PoP, not the user, and
+ * country-based filters (e.g. an "internal user = Israel" rule) silently miss
+ * these events. Passing `$ip` overrides that so GeoIP resolves the real user,
+ * lining these up with the events the desktop app sends from the same machine.
+ * Only pass it for events that actually originate from a user request; webhook
+ * -driven events (Lemon Squeezy) have no user IP and must omit it.
  */
-async function sendToPostHog(event, distinctId, properties) {
+async function sendToPostHog(event, distinctId, properties, clientIp) {
+    const props = {
+        ...properties,
+        $lib: 'cloudflare-worker'
+    };
+    if (clientIp) {
+        props.$ip = clientIp;
+    }
+
     const response = await fetch(`${POSTHOG_HOST}/capture/`, {
         method: 'POST',
         headers: {
@@ -189,10 +262,7 @@ async function sendToPostHog(event, distinctId, properties) {
             api_key: POSTHOG_API_KEY,
             event: event,
             distinct_id: distinctId,
-            properties: {
-                ...properties,
-                $lib: 'cloudflare-worker'
-            },
+            properties: props,
             timestamp: new Date().toISOString()
         })
     });
@@ -528,9 +598,9 @@ function clampUtms(raw) {
     return Object.keys(out).length ? out : null;
 }
 
-async function readJsonBounded(request) {
+async function readJsonBounded(request, maxBytes = PAIRINGS_MAX_BODY_BYTES) {
     const text = await request.text();
-    if (text.length > PAIRINGS_MAX_BODY_BYTES) {
+    if (text.length > maxBytes) {
         const err = new Error('payload_too_large');
         err.statusCode = 413;
         throw err;
@@ -1483,6 +1553,1026 @@ async function handleGads(request, env, url) {
     });
 }
 
+// ─── Free-tier quota ──────────────────────────────────────────────────────────
+//
+// The desktop app used to own the free-tier counter in an encrypted local file.
+// Encryption stopped anyone editing the number down, but nothing stopped them
+// deleting the file, and a missing file read as "new install, full quota". On
+// Microsoft Store builds the AppData container is wiped by an ordinary
+// uninstall, so the reset needed no intent at all.
+//
+// So the count lives here now. The app holds a cache of the songs it owns (so
+// existing work opens offline) and asks before starting anything new. It never
+// computes the decision itself, and it never sees the limit except as a number
+// to render.
+//
+// What this does and does not buy: a stock client sends its real hardware
+// fingerprint, so uninstall/reinstall no longer resets anything. A patched
+// client can still send a random device_id and mint a fresh account — that is
+// unavoidable when the client controls the request, and the point is that the
+// bar moves from "uninstall the app" to "patch the binary". The per-IP account
+// cap below and the `quota_device_wiped` signal exist so that farming shows up
+// in analytics rather than passing silently.
+
+/** Advance a timestamp by one calendar month in UTC, clamping the day for
+ *  shorter months (Jan 31 → Feb 28/29) so an anchor late in the month doesn't
+ *  drift forward over a year. Mirrors the client's previous local rollover so
+ *  users don't perceive a change in when their month turns over. */
+function addOneCalendarMonthUtc(ms) {
+    const d = new Date(ms);
+    const year  = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+
+    const targetYear  = month === 11 ? year + 1 : year;
+    const targetMonth = (month + 1) % 12;
+
+    // Day 0 of the following month is the last day of the target month.
+    const daysInTarget = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    const targetDay    = Math.min(d.getUTCDate(), daysInTarget);
+
+    return Date.UTC(targetYear, targetMonth, targetDay,
+                    d.getUTCHours(), d.getUTCMinutes(),
+                    d.getUTCSeconds(), d.getUTCMilliseconds());
+}
+
+/** Walk the period anchor forward until it contains `nowMs`. Uses the server
+ *  clock exclusively — the old client-side version advanced on the local clock,
+ *  so setting the system date forward a month cleared the period for free.
+ *
+ *  The iteration guard covers a corrupt or absurd anchor; without it a bad row
+ *  could spin the isolate until Cloudflare kills the request. */
+function rollPeriodForward(periodStartMs, nowMs) {
+    let start = periodStartMs;
+    let rolled = false;
+
+    for (let i = 0; i < 600 && nowMs >= addOneCalendarMonthUtc(start); i++) {
+        start = addOneCalendarMonthUtc(start);
+        rolled = true;
+    }
+
+    return { periodStart: start, rolled };
+}
+
+function clampLimit(n) {
+    const v = Math.floor(Number(n));
+    if (!Number.isFinite(v)) return QUOTA_FALLBACK_LIMIT;
+    return Math.min(QUOTA_MAX_LIMIT, Math.max(QUOTA_MIN_LIMIT, v));
+}
+
+/** Global default limit, changeable with a single UPDATE and no app release.
+ *  Falls back to the shipped number on a missing or junk row. */
+async function readDefaultLimit(db) {
+    try {
+        const row = await db.prepare(
+            `SELECT value FROM quota_config WHERE key = 'default_limit'`
+        ).first();
+
+        if (!row || row.value === null || row.value === undefined) return QUOTA_FALLBACK_LIMIT;
+
+        const parsed = Number(row.value);
+        if (!Number.isFinite(parsed)) return QUOTA_FALLBACK_LIMIT;
+
+        return clampLimit(parsed);
+    } catch (e) {
+        console.log(JSON.stringify({ evt: 'quota_config_read_failed', error: String(e && e.message || e) }));
+        return QUOTA_FALLBACK_LIMIT;
+    }
+}
+
+/** The limit actually enforced for a period in progress.
+ *
+ *  `period_limit` is snapshotted when the period starts, so taking the global
+ *  default down can't strand someone who is already above the new number — the
+ *  cut lands at their next rollover. Putting it up applies right away, because
+ *  there's no reason to make a user wait for good news. This is the rule whose
+ *  absence produced the original support case: a 10 → 5 change mid-period took
+ *  one user from "7 songs left" to "1 song left" overnight. */
+function resolveEffectiveLimit(periodLimit, configuredLimit) {
+    return Math.max(clampLimit(periodLimit), clampLimit(configuredLimit));
+}
+
+async function quotaCountUsed(db, deviceId, periodStart) {
+    const row = await db.prepare(
+        `SELECT COUNT(*) AS n FROM quota_songs
+          WHERE device_id = ?1 AND period_start = ?2`
+    ).bind(deviceId, periodStart).first();
+
+    return row ? Number(row.n) || 0 : 0;
+}
+
+async function quotaIsOwned(db, deviceId, songHash) {
+    const row = await db.prepare(
+        `SELECT 1 AS hit FROM quota_songs WHERE device_id = ?1 AND song_hash = ?2`
+    ).bind(deviceId, songHash).first();
+
+    return !!row;
+}
+
+/** Newest-first page of owned hashes, for the client's offline cache. */
+async function quotaFetchOwned(db, deviceId) {
+    const res = await db.prepare(
+        `SELECT song_hash FROM quota_songs
+          WHERE device_id = ?1
+          ORDER BY granted_at DESC
+          LIMIT ?2`
+    ).bind(deviceId, QUOTA_OWNED_PAGE_SIZE).all();
+
+    return (res && res.results ? res.results : []).map(r => r.song_hash);
+}
+
+/** Approximate per-IP ceiling on *new* account rows per day.
+ *
+ *  KV has no atomic increment, so two simultaneous creations can both read the
+ *  same counter — this is a speed bump against scripted device_id farming, not
+ *  a guarantee. Set high enough that a shared studio, a classroom or a NAT'd
+ *  office never trips it; the point is to make farming visible and slow, and
+ *  the log line below is as valuable as the block. */
+const QUOTA_NEW_ACCOUNTS_PER_IP_PER_DAY = 20;
+
+async function quotaCheckAccountCreationBudget(env, request) {
+    if (!env.PAIRINGS) return { allowed: true, count: 0 };
+
+    const ip = coarseIp(request);
+    if (!ip) return { allowed: true, count: 0 };
+
+    const day = new Date().toISOString().slice(0, 10);
+    const key = `qacct:${day}:${ip}`;
+
+    let count = 0;
+    try {
+        const raw = await env.PAIRINGS.get(key);
+        count = raw ? Number(raw) || 0 : 0;
+    } catch (e) {
+        return { allowed: true, count: 0 };
+    }
+
+    if (count >= QUOTA_NEW_ACCOUNTS_PER_IP_PER_DAY) {
+        return { allowed: false, count, key };
+    }
+
+    return { allowed: true, count, key };
+}
+
+async function quotaBumpAccountCreationBudget(env, key, count) {
+    if (!env.PAIRINGS || !key) return;
+    try {
+        await env.PAIRINGS.put(key, String(count + 1), { expirationTtl: 2 * 24 * 60 * 60 });
+    } catch (e) { /* best effort */ }
+}
+
+/** Load the account, creating it on first contact, and advance its period if a
+ *  month has elapsed. Returns the live view the request should reason about.
+ *
+ *  `existedBefore` comes from the caller's own existence check, which it needs
+ *  anyway to decide whether to charge the per-IP creation budget. Two
+ *  simultaneous first requests can both report `created` — the INSERT is
+ *  ON CONFLICT DO NOTHING and the seed is idempotent, so the only cost is
+ *  double-charging one slot of that budget. */
+async function quotaEnsureAccount(db, deviceId, nowMs, meta, defaultLimit, existedBefore) {
+    if (!existedBefore) {
+        await db.prepare(
+            `INSERT INTO quota_accounts
+                (device_id, created_at, last_seen_at, period_start, period_limit,
+                 bcid, platform, app_version)
+             VALUES (?1, ?2, ?2, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(device_id) DO NOTHING`
+        ).bind(deviceId, nowMs, defaultLimit,
+               meta.bcid || null, meta.platform || null, meta.appVersion || null).run();
+    }
+
+    const row = await db.prepare(
+        `SELECT device_id, created_at, period_start, period_limit, limit_override,
+                bcid, seeded_from_local
+           FROM quota_accounts WHERE device_id = ?1`
+    ).bind(deviceId).first();
+
+    const created = !existedBefore;
+
+    const { periodStart, rolled } = rollPeriodForward(Number(row.period_start), nowMs);
+
+    const configured = row.limit_override === null || row.limit_override === undefined
+        ? defaultLimit
+        : clampLimit(row.limit_override);
+
+    // On rollover the snapshot catches up to whatever is configured now, which
+    // is where a lowered limit finally takes effect.
+    let periodLimit = clampLimit(row.period_limit);
+    if (rolled) periodLimit = configured;
+
+    if (rolled) {
+        await db.prepare(
+            `UPDATE quota_accounts
+                SET period_start = ?2, period_limit = ?3, last_seen_at = ?4
+              WHERE device_id = ?1`
+        ).bind(deviceId, periodStart, periodLimit, nowMs).run();
+    } else {
+        await db.prepare(
+            `UPDATE quota_accounts
+                SET last_seen_at = ?2,
+                    platform     = COALESCE(?3, platform),
+                    app_version  = COALESCE(?4, app_version)
+              WHERE device_id = ?1`
+        ).bind(deviceId, nowMs, meta.platform || null, meta.appVersion || null).run();
+    }
+
+    return {
+        deviceId,
+        createdAt: Number(row.created_at),
+        periodStart,
+        periodLimit,
+        effectiveLimit: resolveEffectiveLimit(periodLimit, configured),
+        canonicalBcid: row.bcid || null,
+        seededFromLocal: !!Number(row.seeded_from_local),
+        created,
+        rolled,
+    };
+}
+
+/** Record a secondary identity → account mapping. This is what lets a wiped
+ *  install recover the bcid it was minted with, so a reinstall stops looking
+ *  like a brand-new user in the funnels. */
+async function quotaLinkIdentity(db, kind, value, deviceId, nowMs) {
+    if (!value) return;
+    await db.prepare(
+        `INSERT INTO quota_identity_links (kind, value, device_id, linked_at)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(kind, value) DO UPDATE SET device_id = ?3, linked_at = ?4`
+    ).bind(kind, value, deviceId, nowMs).run();
+}
+
+/** The numbers every /quota response carries. The client renders these
+ *  verbatim and derives nothing, which is why the limit no longer needs to
+ *  exist as a compile-time constant in the app. */
+function quotaSnapshot(account, used, extra = {}) {
+    const remaining = Math.max(0, account.effectiveLimit - used);
+    return {
+        ok: true,
+        used,
+        limit: account.effectiveLimit,
+        remaining,
+        period_start: account.periodStart,
+        period_end: addOneCalendarMonthUtc(account.periodStart),
+        server_time: Date.now(),
+        bcid: account.canonicalBcid,
+        ...extra,
+    };
+}
+
+function quotaJson(body, status, cors) {
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: { ...cors, 'content-type': 'application/json; charset=utf-8' },
+    });
+}
+
+// ─── Entitlement signing ──────────────────────────────────────────────────────
+//
+// The worker is the sole authority for both tiers. Every quota/licence answer
+// carries a compact JWS (alg EdDSA) the client verifies against a public key
+// baked into the binary. This is what makes the fake-server and hand-written
+// file attacks fail: the client trusts the signature, not the transport or the
+// local file, and the private key never leaves Cloudflare.
+
+/** base64url without padding, from raw bytes. Built with a loop rather than
+ *  String.fromCharCode(...bytes) because the owned-song list can push the token
+ *  past the argument-count limit of the spread form. */
+function bytesToB64u(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function strToB64u(str) {
+    return bytesToB64u(new TextEncoder().encode(str));
+}
+
+// Imported once per isolate. A missing/invalid secret rejects the promise; we
+// null it out so a later request can retry rather than caching the failure for
+// the lifetime of the isolate.
+let _signingKeyPromise = null;
+
+function getSigningKey(env) {
+    if (!_signingKeyPromise) {
+        _signingKeyPromise = (async () => {
+            const b64 = env.ENTITLEMENT_SIGNING_KEY;
+            if (!b64) throw new Error('signing_key_unavailable');
+            const pkcs8 = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'Ed25519' }, false, ['sign']);
+        })().catch(e => { _signingKeyPromise = null; throw e; });
+    }
+    return _signingKeyPromise;
+}
+
+/** Sign a payload object into a compact JWS string. */
+async function signEntitlement(env, payload) {
+    const key = await getSigningKey(env);
+    const header = { alg: 'EdDSA', typ: 'JWT', kid: payload.kid || ENTITLEMENT_KEY_ID };
+    const signingInput = strToB64u(JSON.stringify(header)) + '.' + strToB64u(JSON.stringify(payload));
+    const sig = new Uint8Array(await crypto.subtle.sign(
+        { name: 'Ed25519' }, key, new TextEncoder().encode(signingInput)));
+    return signingInput + '.' + bytesToB64u(sig);
+}
+
+/** Common claims shared by every token. `machineId`/`nonce` are echoed straight
+ *  back so the client can bind the token to what it computed and just sent. */
+function entitlementBase(deviceId, machineId, tier, nonce, nowMs) {
+    return {
+        v: 1,
+        kid: ENTITLEMENT_KEY_ID,
+        device_id: deviceId,
+        machine_id: machineId || '',
+        tier,
+        iat: nowMs,
+        exp: nowMs + ENTITLEMENT_TTL_MS,
+        nonce: nonce || '',
+    };
+}
+
+/** Attach a `signed` JWS to an existing plaintext response body. Best-effort:
+ *  if signing fails (e.g. the secret is missing) the plaintext body still goes
+ *  out, so already-shipped clients are unaffected. New clients treat a missing
+ *  signature as "couldn't reach the server" and fall back to their offline
+ *  cache — fail-closed for anything not already owned. */
+async function attachSigned(body, env, payload) {
+    try {
+        body.signed = await signEntitlement(env, payload);
+    } catch (e) {
+        console.log(JSON.stringify({ evt: 'entitlement_sign_failed', error: String(e && e.message || e) }));
+    }
+    return body;
+}
+
+/**
+ * Quota route handler.
+ *
+ *   POST /quota/state  — sync: current usage, period, and owned-song cache.
+ *                        Carries the one-time migration seed.
+ *   POST /quota/claim  — ask for a slot for one song. The only call that can
+ *                        consume quota, and the only gate on new work.
+ *   POST /quota/grant  — support/admin: set an override, re-anchor a period,
+ *                        or hand over songs. Requires QUOTA_ADMIN_TOKEN.
+ */
+async function handleQuota(request, env, url, ctx) {
+    const origin = request.headers.get('origin') || '';
+    const cors = pairingsCorsHeaders(origin);
+
+    if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: cors });
+    }
+
+    if (request.method !== 'POST') {
+        return quotaJson({ ok: false, error: 'method_not_allowed' }, 405, cors);
+    }
+
+    const db = env.QUOTA_DB;
+    if (!db) {
+        console.error('QUOTA_DB binding missing — did you bind the D1 database in wrangler.toml?');
+        return quotaJson({ ok: false, error: 'db_unavailable' }, 503, cors);
+    }
+
+    let body;
+    try {
+        body = await readJsonBounded(request, QUOTA_MAX_BODY_BYTES);
+    } catch (e) {
+        console.log(JSON.stringify({
+            evt: 'quota_bad_body',
+            path: url.pathname,
+            error: e.message,
+            content_length: request.headers.get('content-length') || null,
+        }));
+        return quotaJson({ ok: false, error: e.message }, e.statusCode || 400, cors);
+    }
+
+    if (url.pathname === '/quota/grant') {
+        return handleQuotaGrant(body, env, db, cors);
+    }
+
+    const deviceId = clampString(body.device_id, 64);
+    if (!deviceId || !QUOTA_ID_RE.test(deviceId)) {
+        return quotaJson({ ok: false, error: 'invalid_device_id' }, 400, cors);
+    }
+
+    const bcid = (() => {
+        const v = clampString(body.bcid, 80);
+        return v && BCID_RE.test(v) ? v : null;
+    })();
+
+    const meta = {
+        bcid,
+        platform:   clampString(body.platform, 32),
+        appVersion: clampString(body.app_version, 32),
+    };
+
+    // Echoed into the signed token so the client can bind it to what it sent.
+    // Both optional on the wire: a pre-signing client omits them and simply
+    // ignores the `signed` field it gets back. machine_id is only meaningful
+    // for the paid tier; the free tier is keyed on device_id.
+    const machineId = (() => {
+        const v = clampString(body.machine_id, 32);
+        return v && MACHINE_ID_RE.test(v) ? v : '';
+    })();
+    const nonce = (() => {
+        const v = clampString(body.nonce, 64);
+        return v && NONCE_RE.test(v) ? v : '';
+    })();
+
+    // Validate each route's own payload before touching the database. Doing
+    // this after quotaEnsureAccount would let a malformed claim leave an
+    // account row behind as a side effect, which both pollutes the ledger and
+    // spends the caller's per-IP creation budget on a request that did nothing.
+    let songHash = null;
+    if (url.pathname === '/quota/claim') {
+        songHash = clampString(body.song_hash, 64);
+        if (!songHash || !QUOTA_ID_RE.test(songHash)) {
+            return quotaJson({ ok: false, error: 'invalid_song_hash' }, 400, cors);
+        }
+    }
+
+    const nowMs = Date.now();
+    const defaultLimit = await readDefaultLimit(db);
+
+    // Creating a row is the only expensive-to-abuse operation here, so the
+    // budget check happens before it and nowhere else.
+    let budget = { allowed: true, count: 0, key: null };
+    const existing = await db.prepare(
+        `SELECT 1 AS hit FROM quota_accounts WHERE device_id = ?1`
+    ).bind(deviceId).first();
+
+    if (!existing) {
+        budget = await quotaCheckAccountCreationBudget(env, request);
+        if (!budget.allowed) {
+            console.log(JSON.stringify({
+                evt: 'quota_account_budget_exceeded',
+                count: budget.count,
+                path: url.pathname,
+            }));
+            return quotaJson({ ok: false, error: 'rate_limited' }, 429, cors);
+        }
+    }
+
+    const account = await quotaEnsureAccount(db, deviceId, nowMs, meta, defaultLimit, !!existing);
+
+    if (account.created) {
+        await quotaBumpAccountCreationBudget(env, budget.key, budget.count);
+    }
+
+    if (bcid) {
+        await quotaLinkIdentity(db, 'bcid', bcid, deviceId, nowMs);
+
+        // First bcid seen for an account becomes the canonical one: it's the
+        // identity the download page minted, so it's the one carrying the ad
+        // click. Later ones are recorded as links but never promoted.
+        if (!account.canonicalBcid) {
+            await db.prepare(
+                `UPDATE quota_accounts SET bcid = ?2 WHERE device_id = ?1 AND bcid IS NULL`
+            ).bind(deviceId, bcid).run();
+            account.canonicalBcid = bcid;
+        }
+    }
+
+    if (url.pathname === '/quota/claim') {
+        return handleQuotaClaim(songHash, env, db, cors, account, nowMs, machineId, nonce);
+    }
+
+    if (url.pathname === '/quota/state') {
+        const clientIp = request.headers.get('cf-connecting-ip') || '';
+        return handleQuotaState(body, env, db, cors, account, nowMs, ctx, machineId, nonce, clientIp);
+    }
+
+    return quotaJson({ ok: false, error: 'not_found' }, 404, cors);
+}
+
+async function handleQuotaClaim(songHash, env, db, cors, account, nowMs, machineId, nonce) {
+    // Build the signed twin of a snapshot: the same numbers plus the claim
+    // decision, in a token the client verifies instead of trusting the body.
+    const signClaim = async (snapshot, allowed, reason) => {
+        const payload = entitlementBase(account.deviceId, machineId, 'free', nonce, nowMs);
+        payload.quota = {
+            used: snapshot.used,
+            limit: snapshot.limit,
+            remaining: snapshot.remaining,
+            period_start: snapshot.period_start,
+            period_end: snapshot.period_end,
+        };
+        payload.decision = { song_hash: songHash, allowed, reason };
+        payload.bcid = account.canonicalBcid || '';
+        return attachSigned(snapshot, env, payload);
+    };
+
+    // Owning a song is permanent and free to re-open, which preserves the
+    // grandfathering the local implementation had: re-analysing something you
+    // already have never costs a second slot.
+    if (await quotaIsOwned(db, account.deviceId, songHash)) {
+        const used = await quotaCountUsed(db, account.deviceId, account.periodStart);
+        const snapshot = quotaSnapshot(account, used, {
+            allowed: true,
+            reason: 'already_owned',
+        });
+        return quotaJson(await signClaim(snapshot, true, 'already_owned'), 200, cors);
+    }
+
+    // Count and insert in one statement so two claims arriving together can't
+    // both pass a separate check. D1 gives no multi-statement transaction here,
+    // and a conditional INSERT...SELECT is the cheapest way to stay correct.
+    await db.prepare(
+        `INSERT INTO quota_songs (device_id, song_hash, granted_at, period_start, source)
+         SELECT ?1, ?2, ?3, ?4, 'claim'
+          WHERE (SELECT COUNT(*) FROM quota_songs
+                  WHERE device_id = ?1 AND period_start = ?4) < ?5
+         ON CONFLICT(device_id, song_hash) DO NOTHING`
+    ).bind(account.deviceId, songHash, nowMs, account.periodStart, account.effectiveLimit).run();
+
+    // Re-read rather than trusting `meta.changes`, whose shape has moved
+    // between D1 versions. Two indexed lookups is a fine price for a decision
+    // this load-bearing.
+    const granted = await quotaIsOwned(db, account.deviceId, songHash);
+    const used    = await quotaCountUsed(db, account.deviceId, account.periodStart);
+
+    console.log(JSON.stringify({
+        evt: 'quota_claim',
+        granted,
+        used,
+        limit: account.effectiveLimit,
+        period_start: account.periodStart,
+        rolled: account.rolled,
+    }));
+
+    const reason = granted ? 'granted' : 'quota_exhausted';
+    const snapshot = quotaSnapshot(account, used, { allowed: granted, reason });
+    return quotaJson(await signClaim(snapshot, granted, reason), 200, cors);
+}
+
+async function handleQuotaState(body, env, db, cors, account, nowMs, ctx, machineId, nonce, clientIp) {
+    const seed = body.seed;
+    let seeded = 0;
+
+    // Migration seed. Only ever applied to an account row this request just
+    // created, which is the whole security property: a returning device cannot
+    // re-seed itself back to zero usage.
+    //
+    // A device that already wiped its local state before upgrading will seed as
+    // "0 used" and get a fresh period, and there is no way to tell that apart
+    // from a genuinely new install. That's a deliberate one-time amnesty — the
+    // alternative is deleting the owned-song history of every honest user — and
+    // it closes permanently once the row exists.
+    if (account.created && seed && Array.isArray(seed.hashes)) {
+        const hashes = seed.hashes
+            .map(h => clampString(h, 64))
+            .filter(h => h && QUOTA_ID_RE.test(h))
+            .slice(0, QUOTA_MAX_SEED_HASHES);
+
+        if (hashes.length) {
+            // period_start 0 marks "owned before the ledger existed". The usage
+            // count only matches the account's real period anchor, so seeded
+            // songs stay openable without consuming anything.
+            const stmt = db.prepare(
+                `INSERT INTO quota_songs (device_id, song_hash, granted_at, period_start, source)
+                 VALUES (?1, ?2, ?3, 0, 'seed')
+                 ON CONFLICT(device_id, song_hash) DO NOTHING`
+            );
+
+            await db.batch(hashes.map(h => stmt.bind(account.deviceId, h, nowMs)));
+            seeded = hashes.length;
+
+            await db.prepare(
+                `UPDATE quota_accounts SET seeded_from_local = 1 WHERE device_id = ?1`
+            ).bind(account.deviceId).run();
+        }
+    }
+
+    // The abuse signal. A client reporting first launch against a device row we
+    // already had means the local state went away but the machine didn't —
+    // exactly the shape of the case that motivated all of this. Reported from
+    // the server because a client that just wiped itself is not a trustworthy
+    // narrator.
+    const clientClaimsFirstLaunch = body.first_launch === true;
+    if (clientClaimsFirstLaunch && !account.created && ctx) {
+        // Attribute to the account's original bcid when we have one — that's the
+        // identity the install was minted with, and the reason it's stored on the
+        // account at all. Without one the only handle is the device id, which
+        // makes an unlinked person; `identified_by` keeps those filterable rather
+        // than silently mixed in with real users.
+        const distinctId = account.canonicalBcid || `hw_${account.deviceId.slice(0, 16)}`;
+
+        ctx.waitUntil(sendToPostHog('quota_device_wiped', distinctId, {
+            identified_by:     account.canonicalBcid ? 'bcid' : 'device_id',
+            device_age_days:   Math.max(0, Math.round((nowMs - account.createdAt) / 86400000)),
+            songs_used:        await quotaCountUsed(db, account.deviceId, account.periodStart),
+            quota_limit:       account.effectiveLimit,
+            platform:          clampString(body.platform, 32) || null,
+            app_version:       clampString(body.app_version, 32) || null,
+            seeded_from_local: account.seededFromLocal,
+        }, clientIp));
+    }
+
+    const used  = await quotaCountUsed(db, account.deviceId, account.periodStart);
+    const owned = await quotaFetchOwned(db, account.deviceId);
+    const ownedTruncated = owned.length >= QUOTA_OWNED_PAGE_SIZE;
+
+    const snapshot = quotaSnapshot(account, used, {
+        owned,
+        owned_truncated: ownedTruncated,
+        seeded,
+        account_created: account.created,
+    });
+
+    // The owned list must be inside the signed payload, not just the body —
+    // otherwise the client's offline cache stays forgeable and someone grants
+    // themselves unlimited offline songs by editing quota.dat.
+    const payload = entitlementBase(account.deviceId, machineId, 'free', nonce, nowMs);
+    payload.quota = {
+        used: snapshot.used,
+        limit: snapshot.limit,
+        remaining: snapshot.remaining,
+        period_start: snapshot.period_start,
+        period_end: snapshot.period_end,
+    };
+    payload.owned = owned;
+    payload.owned_truncated = ownedTruncated;
+    payload.bcid = account.canonicalBcid || '';
+
+    return quotaJson(await attachSigned(snapshot, env, payload), 200, cors);
+}
+
+/** Support endpoint. Kept in the worker rather than done by hand in the D1
+ *  console so every grant is one auditable call with a reason attached.
+ *
+ *  Set the token with: wrangler secret put QUOTA_ADMIN_TOKEN */
+async function handleQuotaGrant(body, env, db, cors) {
+    if (!env.QUOTA_ADMIN_TOKEN) {
+        return quotaJson({ ok: false, error: 'admin_disabled' }, 503, cors);
+    }
+
+    const token = clampString(body.admin_token, 256);
+    if (token !== env.QUOTA_ADMIN_TOKEN) {
+        return quotaJson({ ok: false, error: 'forbidden' }, 403, cors);
+    }
+
+    const deviceId = clampString(body.device_id, 64);
+    if (!deviceId || !QUOTA_ID_RE.test(deviceId)) {
+        return quotaJson({ ok: false, error: 'invalid_device_id' }, 400, cors);
+    }
+
+    const exists = await db.prepare(
+        `SELECT 1 AS hit FROM quota_accounts WHERE device_id = ?1`
+    ).bind(deviceId).first();
+
+    if (!exists) {
+        return quotaJson({ ok: false, error: 'unknown_device' }, 404, cors);
+    }
+
+    const nowMs = Date.now();
+    const notes = clampString(body.notes, 512);
+    const applied = [];
+
+    if (body.limit_override !== undefined) {
+        const override = body.limit_override === null ? null : clampLimit(body.limit_override);
+        await db.prepare(
+            `UPDATE quota_accounts
+                SET limit_override = ?2, notes = COALESCE(?3, notes)
+              WHERE device_id = ?1`
+        ).bind(deviceId, override, notes).run();
+        applied.push(`limit_override=${override}`);
+    }
+
+    // Re-anchoring the period to now is the "give them a clean month" lever.
+    // Past songs stay owned; only the usage window moves.
+    if (body.reset_period === true) {
+        const defaultLimit = await readDefaultLimit(db);
+        await db.prepare(
+            `UPDATE quota_accounts
+                SET period_start = ?2, period_limit = ?3, notes = COALESCE(?4, notes)
+              WHERE device_id = ?1`
+        ).bind(deviceId, nowMs, defaultLimit, notes).run();
+        applied.push('reset_period');
+    }
+
+    if (Array.isArray(body.grant_hashes) && body.grant_hashes.length) {
+        const hashes = body.grant_hashes
+            .map(h => clampString(h, 64))
+            .filter(h => h && QUOTA_ID_RE.test(h))
+            .slice(0, QUOTA_MAX_SEED_HASHES);
+
+        if (hashes.length) {
+            const stmt = db.prepare(
+                `INSERT INTO quota_songs (device_id, song_hash, granted_at, period_start, source)
+                 VALUES (?1, ?2, ?3, 0, 'grant')
+                 ON CONFLICT(device_id, song_hash) DO NOTHING`
+            );
+            await db.batch(hashes.map(h => stmt.bind(deviceId, h, nowMs)));
+            applied.push(`grant_hashes=${hashes.length}`);
+        }
+    }
+
+    console.log(JSON.stringify({ evt: 'quota_grant', applied, notes: notes || null }));
+
+    return quotaJson({ ok: true, applied }, 200, cors);
+}
+
+// ─── Paid licence (worker-mediated Lemon Squeezy) ─────────────────────────────
+//
+// The client no longer talks to api.lemonsqueezy.com and no longer trusts a
+// self-signed local file. It POSTs here; the worker calls the Lemon Squeezy
+// License API server-side, caches the verdict in D1, and returns an
+// Ed25519-signed pro token. A fake server can't forge the token (no private
+// key) and can't strip it to downgrade a paid user into anything worse than
+// "looks offline" — which fails closed to the last good cached token, not to
+// free.
+
+const LS_LICENSE_API = 'https://api.lemonsqueezy.com/v1/licenses';
+const LICENSE_MAX_BODY_BYTES = 4 * 1024;
+
+/** Lemon Squeezy license keys are UUID-shaped, but be permissive: any
+ *  hyphenated alphanumeric of a sane length. Bad input is rejected before any
+ *  upstream call so we don't spend the store's rate limit on junk. */
+const LICENSE_KEY_RE = /^[A-Za-z0-9-]{8,128}$/;
+const INSTANCE_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+
+/** POST to a Lemon Squeezy License API action as form-urlencoded (what that API
+ *  expects). Returns the parsed JSON plus the HTTP status; throws only on a
+ *  transport failure, which the caller turns into "serve the cache". */
+async function lsLicenseCall(action, params) {
+    const res = await fetch(`${LS_LICENSE_API}/${action}`, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(params).toString(),
+    });
+    let json = null;
+    try { json = await res.json(); } catch (e) { /* leave null */ }
+    return { httpStatus: res.status, json };
+}
+
+/** Normalise the varied Lemon Squeezy shapes (activate vs validate, valid vs
+ *  error) into one struct the rest of the handler reasons about. */
+function parseLsLicense(json) {
+    const lk   = (json && json.license_key) || {};
+    const inst = (json && json.instance) || {};
+    const meta = (json && json.meta) || {};
+
+    const expiresAt = lk.expires_at ? Date.parse(lk.expires_at) : 0;
+
+    return {
+        valid:      !!json && (json.valid === true || json.activated === true),
+        status:     lk.status || null,   // active | inactive | expired | disabled
+        endsAt:     Number.isFinite(expiresAt) ? expiresAt : 0,
+        instanceId: inst.id != null ? String(inst.id) : null,
+        email:      meta.customer_email || null,
+        name:       meta.customer_name || null,
+        orderId:    meta.order_id != null ? String(meta.order_id) : null,
+        error:      (json && json.error) || null,
+    };
+}
+
+async function licenseUpsert(db, deviceId, machineId, licenseKey, lic, nowMs) {
+    await db.prepare(
+        `INSERT INTO license_activations
+            (device_id, machine_id, license_key, instance_id, status, ends_at,
+             email, name, order_id, created_at, last_validated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+         ON CONFLICT(device_id) DO UPDATE SET
+            machine_id  = ?2,
+            license_key = ?3,
+            instance_id = COALESCE(?4, instance_id),
+            status      = ?5,
+            ends_at     = ?6,
+            email       = COALESCE(?7, email),
+            name        = COALESCE(?8, name),
+            order_id    = COALESCE(?9, order_id),
+            last_validated_at = ?10`
+    ).bind(deviceId, machineId || null, licenseKey, lic.instanceId,
+           lic.status, lic.endsAt || 0, lic.email, lic.name, lic.orderId, nowMs).run();
+}
+
+/** Sign a pro entitlement from a resolved licence verdict. */
+async function signLicenseToken(env, deviceId, machineId, nonce, nowMs, lic) {
+    const payload = entitlementBase(deviceId, machineId, 'pro', nonce, nowMs);
+    payload.license = {
+        status:      lic.status || 'active',
+        ends_at:     lic.endsAt || 0,
+        email:       lic.email || '',
+        order_id:    lic.orderId || '',
+        instance_id: lic.instanceId || '',
+    };
+    return signEntitlement(env, payload);
+}
+
+/** Shape of a "not licensed" answer: no signed token, so the client stays in
+ *  Demo. Denial isn't a forgeable attack (fail-closed), so it needn't be
+ *  signed. */
+function licenseDenied(reason, status, cors, extra = {}) {
+    return quotaJson({ ok: true, valid: false, reason, status: status || null, ...extra }, 200, cors);
+}
+
+/**
+ * Licence route handler.
+ *
+ *   POST /license/activate    — bind a licence key to this device (creates a
+ *                               Lemon Squeezy activation instance).
+ *   POST /license/validate    — re-check an existing activation (launch + the
+ *                               periodic recheck). Also the migration entry
+ *                               point: an old install sends its key (+ old
+ *                               instance_id) and gets the new token form.
+ *   POST /license/deactivate  — release this device's activation slot.
+ */
+async function handleLicense(request, env, url, ctx) {
+    const origin = request.headers.get('origin') || '';
+    const cors = pairingsCorsHeaders(origin);
+
+    if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: cors });
+    }
+    if (request.method !== 'POST') {
+        return quotaJson({ ok: false, error: 'method_not_allowed' }, 405, cors);
+    }
+
+    const db = env.QUOTA_DB;
+    if (!db) {
+        console.error('QUOTA_DB binding missing — licence routes need the D1 database.');
+        return quotaJson({ ok: false, error: 'db_unavailable' }, 503, cors);
+    }
+
+    let body;
+    try {
+        body = await readJsonBounded(request, LICENSE_MAX_BODY_BYTES);
+    } catch (e) {
+        return quotaJson({ ok: false, error: e.message }, e.statusCode || 400, cors);
+    }
+
+    const deviceId = clampString(body.device_id, 64);
+    if (!deviceId || !QUOTA_ID_RE.test(deviceId)) {
+        return quotaJson({ ok: false, error: 'invalid_device_id' }, 400, cors);
+    }
+
+    const machineId = (() => {
+        const v = clampString(body.machine_id, 32);
+        return v && MACHINE_ID_RE.test(v) ? v : '';
+    })();
+    const nonce = (() => {
+        const v = clampString(body.nonce, 64);
+        return v && NONCE_RE.test(v) ? v : '';
+    })();
+
+    const nowMs  = Date.now();
+    const action = url.pathname.slice('/license/'.length);
+
+    const row = await db.prepare(
+        `SELECT device_id, machine_id, license_key, instance_id, status, ends_at,
+                email, name, order_id, last_validated_at
+           FROM license_activations WHERE device_id = ?1`
+    ).bind(deviceId).first();
+
+    try {
+        if (action === 'deactivate') {
+            return await handleLicenseDeactivate(env, db, cors, body, row, deviceId);
+        }
+        if (action === 'activate') {
+            return await handleLicenseActivate(env, db, cors, body, deviceId, machineId, nonce, nowMs);
+        }
+        if (action === 'validate') {
+            return await handleLicenseValidate(env, db, cors, body, row, deviceId, machineId, nonce, nowMs);
+        }
+        return quotaJson({ ok: false, error: 'not_found' }, 404, cors);
+    } catch (e) {
+        // A transport failure to Lemon Squeezy lands here. For validate we try
+        // to serve the cache before giving up (see handleLicenseValidate); a
+        // throw reaching this point means even that wasn't possible.
+        console.log(JSON.stringify({ evt: 'license_upstream_error', action, error: String(e && e.message || e) }));
+        return quotaJson({ ok: false, error: 'upstream_unavailable' }, 502, cors);
+    }
+}
+
+async function handleLicenseActivate(env, db, cors, body, deviceId, machineId, nonce, nowMs) {
+    const licenseKey = clampString(body.license_key, 128);
+    if (!licenseKey || !LICENSE_KEY_RE.test(licenseKey)) {
+        return quotaJson({ ok: false, error: 'invalid_license_key' }, 400, cors);
+    }
+
+    // instance_name is what shows in the Lemon Squeezy dashboard. The machine
+    // id is the natural label; fall back to the device id when absent.
+    const instanceName = machineId || deviceId.slice(0, 32);
+    const { httpStatus, json } = await lsLicenseCall('activate', {
+        license_key:   licenseKey,
+        instance_name: instanceName,
+    });
+    const lic = parseLsLicense(json);
+
+    if (!lic.valid || !lic.instanceId) {
+        console.log(JSON.stringify({ evt: 'license_activate_denied', http: httpStatus, status: lic.status, error: lic.error }));
+        return licenseDenied(lic.error || 'activation_failed', lic.status, cors);
+    }
+
+    await licenseUpsert(db, deviceId, machineId, licenseKey, lic, nowMs);
+
+    const signed = await signLicenseToken(env, deviceId, machineId, nonce, nowMs, lic);
+    console.log(JSON.stringify({ evt: 'license_activate_ok', status: lic.status, has_instance: !!lic.instanceId }));
+    return quotaJson({
+        ok: true, valid: true, status: lic.status, ends_at: lic.endsAt,
+        email: lic.email, name: lic.name, order_id: lic.orderId,
+        instance_id: lic.instanceId, signed,
+    }, 200, cors);
+}
+
+async function handleLicenseValidate(env, db, cors, body, row, deviceId, machineId, nonce, nowMs) {
+    const licenseKey = row ? row.license_key : clampString(body.license_key, 128);
+    if (!licenseKey || !LICENSE_KEY_RE.test(licenseKey)) {
+        return quotaJson({ ok: false, error: 'invalid_license_key' }, 400, cors);
+    }
+
+    // Prefer a known instance: from our row, else one the migrating client
+    // carried over from its old license.dat. With an instance the validate is
+    // activation-scoped; without one we must activate to create it (migration
+    // from a very old file that never stored an instance id).
+    const bodyInstance = (() => {
+        const v = clampString(body.instance_id, 64);
+        return v && INSTANCE_ID_RE.test(v) ? v : null;
+    })();
+    let instanceId = (row && row.instance_id) || bodyInstance;
+
+    let resp;
+    try {
+        if (instanceId) {
+            resp = await lsLicenseCall('validate', { license_key: licenseKey, instance_id: instanceId });
+        } else {
+            resp = await lsLicenseCall('activate', { license_key: licenseKey, instance_name: machineId || deviceId.slice(0, 32) });
+        }
+    } catch (e) {
+        // Lemon Squeezy unreachable. Serve the cached verdict if it's still a
+        // live licence — this is the whole reason the D1 cache exists, and it
+        // keeps paying users working through an upstream outage, bounded by the
+        // token's 7-day exp.
+        if (row && row.status === 'active' && (!row.ends_at || Number(row.ends_at) > nowMs)) {
+            const cached = {
+                status: row.status, endsAt: Number(row.ends_at) || 0, instanceId: row.instance_id,
+                email: row.email, name: row.name, orderId: row.order_id,
+            };
+            const signed = await signLicenseToken(env, deviceId, machineId, nonce, nowMs, cached);
+            console.log(JSON.stringify({ evt: 'license_validate_cached', reason: 'upstream_unreachable' }));
+            return quotaJson({ ok: true, valid: true, status: cached.status, ends_at: cached.endsAt,
+                               cached: true, signed }, 200, cors);
+        }
+        throw e;
+    }
+
+    const lic = parseLsLicense(resp.json);
+    if (lic.instanceId) instanceId = lic.instanceId;
+
+    if (!lic.valid) {
+        // Authoritative negative: record it so re-validation doesn't keep
+        // hammering Lemon Squeezy, and downgrade the client to Demo.
+        if (row) {
+            await db.prepare(
+                `UPDATE license_activations SET status = ?2, ends_at = ?3, last_validated_at = ?4 WHERE device_id = ?1`
+            ).bind(deviceId, lic.status || 'inactive', lic.endsAt || 0, nowMs).run();
+        }
+        console.log(JSON.stringify({ evt: 'license_validate_denied', http: resp.httpStatus, status: lic.status, error: lic.error }));
+        return licenseDenied(lic.error || 'invalid_license', lic.status, cors);
+    }
+
+    lic.instanceId = instanceId;
+    await licenseUpsert(db, deviceId, machineId, licenseKey, lic, nowMs);
+
+    const signed = await signLicenseToken(env, deviceId, machineId, nonce, nowMs, lic);
+    console.log(JSON.stringify({ evt: 'license_validate_ok', status: lic.status }));
+    return quotaJson({
+        ok: true, valid: true, status: lic.status, ends_at: lic.endsAt,
+        email: lic.email, name: lic.name, order_id: lic.orderId,
+        instance_id: lic.instanceId, signed,
+    }, 200, cors);
+}
+
+async function handleLicenseDeactivate(env, db, cors, body, row, deviceId) {
+    const licenseKey = row ? row.license_key : clampString(body.license_key, 128);
+    const instanceId = (row && row.instance_id) || (() => {
+        const v = clampString(body.instance_id, 64);
+        return v && INSTANCE_ID_RE.test(v) ? v : null;
+    })();
+
+    if (!licenseKey || !instanceId) {
+        // Nothing to release upstream; clear any local row so the device drops
+        // to Demo on next launch.
+        if (row) await db.prepare(`DELETE FROM license_activations WHERE device_id = ?1`).bind(deviceId).run();
+        return quotaJson({ ok: true, deactivated: false, reason: 'nothing_to_deactivate' }, 200, cors);
+    }
+
+    let deactivated = false;
+    try {
+        const { json } = await lsLicenseCall('deactivate', { license_key: licenseKey, instance_id: instanceId });
+        deactivated = !!(json && json.deactivated);
+    } catch (e) {
+        // Even if the upstream call fails, drop the local row: the user's intent
+        // was to stop using this device. The activation slot may linger on
+        // Lemon Squeezy until it's reaped, which support can clear.
+        console.log(JSON.stringify({ evt: 'license_deactivate_upstream_error', error: String(e && e.message || e) }));
+    }
+
+    await db.prepare(`DELETE FROM license_activations WHERE device_id = ?1`).bind(deviceId).run();
+    console.log(JSON.stringify({ evt: 'license_deactivate', deactivated }));
+    return quotaJson({ ok: true, deactivated }, 200, cors);
+}
+
 /**
  * Cloudflare Worker entry point
  */
@@ -1529,6 +2619,18 @@ async function route(request, env, ctx) {
         return handleClaimedStatus(request, env, url);
     }
 
+    if (url.pathname === '/quota/state'
+        || url.pathname === '/quota/claim'
+        || url.pathname === '/quota/grant') {
+        return handleQuota(request, env, url, ctx);
+    }
+
+    if (url.pathname === '/license/activate'
+        || url.pathname === '/license/validate'
+        || url.pathname === '/license/deactivate') {
+        return handleLicense(request, env, url, ctx);
+    }
+
     if (url.pathname === '/capi') {
         return handleCapi(request, env, url);
     }
@@ -1539,4 +2641,17 @@ async function route(request, env, ctx) {
 
     return new Response('Not found', { status: 404 });
 }
+
+// Exposed for the offline test harnesses (quota_selftest.mjs,
+// entitlement_vectors.mjs) so the token format has one source of truth: the
+// vectors the client is tested against are built by the same code that signs in
+// production. Not part of the worker's HTTP surface.
+export const __entitlement = {
+    signEntitlement,
+    entitlementBase,
+    strToB64u,
+    bytesToB64u,
+    ENTITLEMENT_KEY_ID,
+    ENTITLEMENT_TTL_MS,
+};
 

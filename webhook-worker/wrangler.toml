@@ -44,6 +44,22 @@ compatibility_date = "2024-01-01"
 #                                   "trial_download":"customers/123/conversionActions/789"}
 #   GOOGLE_ADS_VALIDATE_ONLY       Optional. Set to "1" to dry-run uploads
 #                                  (validateOnly=true, no attribution).
+#
+#   QUOTA_ADMIN_TOKEN              Shared secret for POST /quota/grant, the
+#                                  support lever for granting a user extra
+#                                  songs or a clean period. /quota/grant
+#                                  returns 503 while unset, so the endpoint is
+#                                  inert until you deliberately enable it.
+#
+#   ENTITLEMENT_SIGNING_KEY        Base64 PKCS8 Ed25519 private key used to sign
+#                                  entitlement tokens for both the quota and
+#                                  licence routes. The matching public key is
+#                                  compiled into the desktop app
+#                                  (ENTITLEMENT_PUBLIC_KEY in LicenseConfig.h).
+#                                  Generate the pair with
+#                                  scripts/gen_signing_key.mjs. If unset, the
+#                                  worker still answers but omits the `signed`
+#                                  field, which new clients treat as "offline".
 
 # ─── Pairing KV ───────────────────────────────────────────────────────────────
 # Stores pending web→app pairing payloads (bcid + Meta attribution) for ~30
@@ -61,6 +77,31 @@ compatibility_date = "2024-01-01"
 binding = "PAIRINGS"
 id = "ec35a8800c954b81a7c3d2a3512b5cd6"
 preview_id = "abf00fa20f7347dcbe0f3a2d70c90fb1"
+
+# ─── Free-tier quota D1 ───────────────────────────────────────────────────────
+# Authoritative ledger of which songs each install owns and how many slots it
+# has used this period. D1 rather than KV because a claim is a read-modify-write
+# and KV's eventual consistency would let a client double-claim; the conditional
+# INSERT in handleQuotaClaim needs real SQL semantics.
+#
+# Provisioned and migrated; the id below is live. Recreating from scratch:
+#   1. wrangler d1 create beatcue-quota
+#      (prints a `database_id = "..."` line; paste it below)
+#   2. wrangler d1 migrations apply beatcue-quota --local
+#      (the local copy backing `wrangler dev`)
+#   3. wrangler d1 migrations apply beatcue-quota --remote
+#      (--remote is required: wrangler 4 targets the local copy by default, so
+#       omitting it re-applies to the wrong database and reports success)
+#   4. wrangler deploy
+#
+# Changing the free-tier limit afterwards needs no release:
+#   wrangler d1 execute beatcue-quota --remote \
+#     --command "UPDATE quota_config SET value='5' WHERE key='default_limit'"
+[[d1_databases]]
+binding = "QUOTA_DB"
+database_name = "beatcue-quota"
+database_id = "f6e89ad1-6113-4d53-bac7-9ca8bf754253"
+migrations_dir = "migrations"
 
 # ─── Static assets opt-out ────────────────────────────────────────────────────
 # Wrangler v4 auto-prompts "Workers with static assets?" when no [assets]
