@@ -292,15 +292,28 @@ wrangler secret put META_TEST_EVENT_CODE
 
 The worker rejects unknown event names to prevent accidental optimization-skewing pushes. Update the allowlist in `worker.js` (`CAPI_STANDARD_EVENTS` / `CAPI_CUSTOM_EVENTS`) when adding a new event.
 
-Currently allowed:
+Currently allowed. Every event from the desktop app is sent **once per
+install** — `MetaCapiClient` enforces that centrally, so each count here is a
+count of people rather than of actions. `new_project_created` is the single
+exception and is being retired.
 
 | Event name on wire | Origin | Internal name | Optimization target? |
 |---|---|---|---|
-| `app_launched` (custom) | desktop app, first launch | `app_launched` | no |
-| `cut_played` (custom) | desktop app, first per session | `cut_played` | no |
-| `InitiateCheckout` | desktop app | `export_clicked` | **yes (start)** |
-| `AddPaymentInfo` | desktop app | `activation_started` | no |
-| `Subscribe` | desktop app | `activation_finished` | **yes (later)** |
+| `app_launched` | desktop app, first launch | `app_launched` | no |
+| `premiere_installed_detected` | desktop app, Premiere on disk | `premiere_installed_detected` | no |
+| `cut_played` | desktop app | `cut_played` | no |
+| `new_project_created` | desktop app, per song hash | `track_open_requested` | no — **retiring** |
+| `first_track_imported` | desktop app, after decode + analysis | `track_ready` | **yes (Custom Conversion)** |
+| `export_intent` | desktop app | `export_started` | **yes (Custom Conversion)** |
+| `activation_started` | desktop app | `activation_started` | no |
+| `activation_finished` | desktop app | `activation_finished` | **yes (Custom Conversion)** |
+| `checkout_clicked` | landing page | `checkout_clicked` | no |
+| `send_to_desktop_clicked` | landing page | `send_to_desktop_clicked` | no |
+
+`first_track_imported` is the deep-funnel signal ad sets should judge against:
+it fires only once a track of the user's own has actually decoded and
+analysed, so a failed load is not a conversion, and once per install, so
+someone clicking through a Premiere timeline does not mint dozens.
 
 ### 5c. Configure Google Ads conversion uploads (`/gads`)
 

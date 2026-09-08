@@ -151,7 +151,8 @@ const CAPI_CUSTOM_EVENTS = new Set([
     'app_launched',
     'premiere_installed_detected',
     'cut_played',
-    'new_project_created',
+    'new_project_created',    // retiring — counts opens, see first_track_imported
+    'first_track_imported',
     'export_intent',
     'activation_started',     // was Meta-standard "AddPaymentInfo"
     'activation_finished',    // was Meta-standard "Subscribe"
