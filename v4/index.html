@@ -6720,7 +6720,14 @@
                 }
 
                 // CAPI side via worker — keepalive so it survives the new-tab nav.
+                // Once per browser: Meta optimises on counts, so a shopper
+                // who opens checkout twice must not mint two conversions.
                 try {
+                    var capiOnceKey = 'cue_capi_once_first_checkout_clicked';
+                    var alreadySent = false;
+                    try { alreadySent = localStorage.getItem(capiOnceKey) === '1'; } catch (e) {}
+                    if (alreadySent) throw new Error('capi_once');
+
                     // Read live cookies first; fall back to page-load globals.
                     var freshFbp = getCookie('_fbp') || window.__cue_fbp || null;
                     var freshFbc = getCookie('_fbc') || window.__cue_fbc || null;
@@ -6731,7 +6738,7 @@
                         keepalive: true,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            event_name: 'checkout_clicked',
+                            event_name: 'first_checkout_clicked',
                             event_id: eventID,
                             event_source_url: window.location.href,
                             action_source: 'website',
@@ -6749,6 +6756,7 @@
                             internal_name: 'lemonsqueezy_buy_click'
                         })
                     }).catch(function() {});
+                    try { localStorage.setItem(capiOnceKey, '1'); } catch (e) {}
                 } catch (e) { /* never block the click */ }
 
                 if (typeof posthog !== 'undefined' && posthog.capture) {

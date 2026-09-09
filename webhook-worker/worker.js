@@ -148,16 +148,32 @@ const CAPI_STANDARD_EVENTS = new Set([
 /** Custom event names BeatCue is allowed to send. Anything outside this set
  *  AND outside CAPI_STANDARD_EVENTS gets rejected — a soft schema lock. */
 const CAPI_CUSTOM_EVENTS = new Set([
+    // Current once-per-person names. A count of any of these is a count of
+    // people — MetaCapiClient (desktop) and the landing-page callers send
+    // each at most once. The first_ prefix is a clean Events Manager history
+    // after the older per-action / per-song spellings.
+    'first_app_launched',
+    'first_premiere_installed_detected',
+    'first_cut_played',
+    'first_new_project_created',
+    'first_track_imported',
+    'first_export_intent',
+    'first_activation_started',
+    'first_activation_finished',
+    'first_checkout_clicked',
+    'first_send_to_desktop_clicked',
+
+    // Pre-first_ spellings. In-field builds still send these; keep them
+    // accepted so a 400 does not burn a conversion during the cutover.
     'app_launched',
     'premiere_installed_detected',
     'cut_played',
-    'new_project_created',    // retiring — counts opens, see first_track_imported
-    'first_track_imported',
+    'new_project_created',
     'export_intent',
-    'activation_started',     // was Meta-standard "AddPaymentInfo"
-    'activation_finished',    // was Meta-standard "Subscribe"
-    'checkout_clicked',       // was Meta-standard "InitiateCheckout"
-    'send_to_desktop_clicked',// was Meta-standard "Lead"
+    'activation_started',
+    'activation_finished',
+    'checkout_clicked',
+    'send_to_desktop_clicked',
     // NOTE: download-page Pixel still fires "StartTrial" (standard) — kept
     // as-is because existing campaigns optimize against it. Don't add a
     // custom mirror here unless we also flip the Pixel call.

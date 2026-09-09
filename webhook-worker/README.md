@@ -292,23 +292,24 @@ wrangler secret put META_TEST_EVENT_CODE
 
 The worker rejects unknown event names to prevent accidental optimization-skewing pushes. Update the allowlist in `worker.js` (`CAPI_STANDARD_EVENTS` / `CAPI_CUSTOM_EVENTS`) when adding a new event.
 
-Currently allowed. Every event from the desktop app is sent **once per
-install** — `MetaCapiClient` enforces that centrally, so each count here is a
-count of people rather than of actions. `new_project_created` is the single
-exception and is being retired.
+Currently allowed. Every desktop event is sent **once per install** —
+`MetaCapiClient` enforces that centrally, so each count here is a count of
+people rather than of actions. Wire names are all `first_*` so Events Manager
+history is not mixed with the older per-action / per-song spellings. The
+pre-`first_` names stay on the allowlist only so in-field builds do not 400.
 
 | Event name on wire | Origin | Internal name | Optimization target? |
 |---|---|---|---|
-| `app_launched` | desktop app, first launch | `app_launched` | no |
-| `premiere_installed_detected` | desktop app, Premiere on disk | `premiere_installed_detected` | no |
-| `cut_played` | desktop app | `cut_played` | no |
-| `new_project_created` | desktop app, per song hash | `track_open_requested` | no — **retiring** |
+| `first_app_launched` | desktop app, first launch | `app_launched` | no |
+| `first_premiere_installed_detected` | desktop app, Premiere on disk | `premiere_installed_detected` | no |
+| `first_cut_played` | desktop app | `cut_played` | no |
+| `first_new_project_created` | desktop app, load request | `track_open_requested` | no |
 | `first_track_imported` | desktop app, after decode + analysis | `track_ready` | **yes (Custom Conversion)** |
-| `export_intent` | desktop app | `export_started` | **yes (Custom Conversion)** |
-| `activation_started` | desktop app | `activation_started` | no |
-| `activation_finished` | desktop app | `activation_finished` | **yes (Custom Conversion)** |
-| `checkout_clicked` | landing page | `checkout_clicked` | no |
-| `send_to_desktop_clicked` | landing page | `send_to_desktop_clicked` | no |
+| `first_export_intent` | desktop app | `export_started` | **yes (Custom Conversion)** |
+| `first_activation_started` | desktop app | `activation_started` | no |
+| `first_activation_finished` | desktop app | `activation_finished` | **yes (Custom Conversion)** |
+| `first_checkout_clicked` | landing page | `lemonsqueezy_buy_click` | no |
+| `first_send_to_desktop_clicked` | landing page | `send_to_desktop_clicked` | no |
 
 `first_track_imported` is the deep-funnel signal ad sets should judge against:
 it fires only once a track of the user's own has actually decoded and
